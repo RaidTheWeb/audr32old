@@ -1,0 +1,36 @@
+# Audr32 Assembler Specification
+
+**Audr32 (Audrey) Assembly** (A32ASM) is a simple assembler targetting the Audr32 (Audrey) computer architecture.
+
+A32ASM supports general assembly operations as well as Macros and other modern features.
+
+
+## Output file structure:
+
++-------------------------------+
+| Text Area (Code Section)      | Anchored at 0x00004000
++-------------------------------+
+| Static Area (Data Section)    | Starts after code section. (Just before it exists a JMP instruction to the start of the code section to avoid interpreting data without explicitly telling the CPU to do so)
++-------------------------------+
+
+Code section supports all generic instructions and directives.
+
+Data section contains defined data such as:
+    - Strings (.ascii, .asciiz (.string))
+    - Numbers (.number)
+    - Binary Data (.byte)
+
+    (Interrupt table would usually be created in the data section)
+
+
+## Macro Directives:
+
+Macros are declared by a single `@` symbol at the start of a line. Valid macros include the following:
+
+- @define name value                        - Declare a constant value (is not reflected in code whatsoever)
+- @include path                             - Include another A32ASM file at current interpretation point.
+- @if(n)def name                            - Encapsulate check if a constant is (not) defined or a constant expression resolves to a respective value.
+    - @else                                 - If otherwise
+- @endif                                    - End an @if(n)def Macro Directive
+- @global                                   - Export declarative value (data, subroutine, etc.)
+

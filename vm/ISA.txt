@@ -1,0 +1,146 @@
+# Audr32 ISA Specification
+
+Audr32 (Audrey) is a 32-bit computer architecture that can be used for Language Backends and its main focus, Operating Systems.
+
+## Instructions:
+
+### Arithmetic
+
+ADD                             - Addition
+IADD                            - Signed Addition
+SUB                             - Subtraction
+ISUB                            - Signed Subtraction
+DIV                             - Division
+IDIV                            - Signed Division
+MUL                             - Multiplication
+IMUL                            - Signed Multiplication
+
+INC                             - Increment
+DEC                             - Decrement
+CMP                             - Compare operands
+AND                             - Logical AND
+SHL                             - Shift Left
+SHR                             - Shift Right
+XOR                             - Exclusive OR
+OR                              - Logical OR
+NOT                             - Logical NOT
+
+### Stack
+
+POP                             - Pop data from stack
+PUSH                            - Push data onto stack
+
+### I/O
+
+INX                             - Input long (four bytes, double word) from port
+OUTX                            - Output long (four bytes, double word) to port
+
+### Procedures
+
+CALL                            - Call a procedure (push IP register to stack)
+    Essentially,
+    PUSH IP
+    MOV IP, procedurelocation
+RET                             - Return from a procedure (set IP register to value on stack)
+    Essentially,
+    POP IP
+
+### Miscellaneous
+
+JMP                             - Jump
+    Essentially,
+    MOV IP, location
+JZ                              - Jump if zero
+JNZ                             - Jump if not zero
+
+MOV                             - Move data between pointers and registers among other things.
+
+NOOP                            - Perform no operation
+HALT                            - Halt operation
+INT                             - Call to interrupt
+ 
+
+## Registers:
+
+A register is a value stored in the CPU and not the memory, 
+ a register can be used to store any 32 bit value for operation on.
+Some instructions will not take registers as arguments and rather reference specific registers to draw and set data to.
+
+The standard registers are as follows:
+
+AX                              - 32 bit accumulator register
+BX                              - 32 bit base register
+CX                              - 32 bit counter register
+DX                              - 32 bit data register
+SI                              - 32 bit source index register
+DI                              - 32 bit destination index register
+SP                              - 32 bit stack pointer register
+BP                              - 32 bit base pointer register
+IP                              - 32 bit instruction pointer register
+R8                              - Generic 32 bit register
+R9                              - Generic 32 bit register
+R10                             - Generic 32 bit register
+R11                             - Generic 32 bit register
+R12                             - Generic 32 bit register
+R13                             - Generic 32 bit register
+R14                             - Generic 32 bit register
+R15                             - Generic 32 bit register
+
+## I/O Ports: (16 bit integer)
+
+0x0000                          - TSC (Timestamp Counter)
+0x0001                          - Keyboard
+0x0002                          - Interrupt Controller
+0x0003                          - Display
+
+## Interrupts: (8 bit integer)
+
+Interrupts are CPU "events" triggered by an I/O device or code.
+When an interrupt is called, any currently blocking HALT instructions are resolved and the CPU will go back to normal function.
+A subroutine can be called in the event of an interrupt, these are declared in an interrupt table.
+An interrupt table is located in memory and will only be configured if the code makes an OUTX call to the Interrupt Controller Device (IO Port 0x0002) with the following calls:
+
+OUTX 0x0002, 0x000000FE (Opcode for setting an interrupt table)
+OUTX 0x0002, memoryaddress (`memoryaddress` being the location of the first byte of the interrupt table.)
+
+### Display
+
+0x01                            - Clear display (set framebuffer all to colour set in DX (16 bit integer))
+0x02                            - Write out character (framebuffer index in AX, character in DX, colour in BX)
+
+
+
+## Opcodes
+
+    PREFIX
+|<=-----------------------------------=>|
+0                   8                   16                  24...
++-------------------+-------------------+-------------------+
+| Instruction       | Mode              | Data...           |
++-------------------+-------------------+-------------------+
+
+"Instruction" is the operation to commence (single 8 bit integer).
+"Mode" is the specific mode for this operation, this can define what will be used.
+    - There are modes for most specific operations.
+
+## Pointers
+
+A pointer references a location in memory. A pointer may reference an 8 bit integer, 16 bit integer, or 32 bit integer.
+
+A standard pointer structure is as follows:
+
+0               8               16               24               32               40
++---------------+-------------------------------------------------------------------+
+| Mode          | Address (32-bit)                                                  |
++---------------+-------------------------------------------------------------------+
+
+Pointer Modes:
+
+0x01                            - 8 bit pointer
+0x02                            - 16 bit pointer
+0x03                            - 32 bit pointer
+
+(Most data that is referenced to by a pointer is dereferenced and cast to a 32 bit datatype before working with it)
+
+Pointers are not stored within any form of data, rather the data they reference is,
+ rather, pointers are merely an abstraction that allow referencing a location in data and its value. Some instructions that will modify the contents of a pointer will set the location in memory to the referenced value.

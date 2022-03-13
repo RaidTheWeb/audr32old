@@ -1,0 +1,3 @@
+assembler/bin/**
+vm/bin/**
+.vscode/**

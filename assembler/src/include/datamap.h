@@ -5,6 +5,8 @@
 
 #define SIZE 256
 
+#define TESTCCLS 69420
+
 struct LabelMapPair {
     char *key;
     uint32_t value;

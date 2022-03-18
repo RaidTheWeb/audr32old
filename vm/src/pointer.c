@@ -39,12 +39,12 @@ ptr_t READ_PTR() {
 uint32_t GET_PTR(ptr_t pointer) {
     switch(pointer.ptrmode) {
         case PTR8:
-            return (uint32_t)*(pointer.ptrv.u8);
+            return ensurebig32((uint32_t)*(pointer.ptrv.u8));
         case PTR16:
-            return (uint32_t)*(pointer.ptrv.u16);
+            return ensurebig32((uint32_t)*(pointer.ptrv.u16));
         case PTRREG:
         case PTR32:
-            return (uint32_t)*(pointer.ptrv.u32);
+            return ensurebig32((uint32_t)*(pointer.ptrv.u32));
         default:
             printf("Pointer attempted to use a mode that doesn't exist (code: 0x%02x)\n", pointer.ptrmode);
             exit(1);

@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 
+#include "interrupts.h"
 #include "io.h"
 #include "vm.h"
 
@@ -29,6 +30,10 @@ void kbd_set_data(device_t *dev, uint8_t scancode) {
     interrupt_trigger(KBD_PORT, KBD_INTNUM); // Trigger interrupt on port 0x0001 with the interrupt number 0x0001
 }
 
+static void kbd_handleint(void) {
+    printf("Funny interrupt handler inside kbd.c\n");
+}
+
 void kbd_init() {
     struct Device devcopy = {
         .id = (uint16_t)io_request_id(),
@@ -38,5 +43,11 @@ void kbd_init() {
         .destroy = NULL
     };
     strncpy(devcopy.name, "kbd", sizeof(devcopy.name));
+
+    iotableent_t inter = {
+        .set = 1,
+        .handle = kbd_handleint
+    };
+    iotable.ioentries[KBD_INTNUM] = inter;
     vm.devices[KBD_PORT] = devcopy;
 }

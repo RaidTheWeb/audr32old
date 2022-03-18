@@ -1,0 +1,156 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Isrc/include",
+      "-o",
+      "build/stack.o",
+      "src/stack.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/stack.c",
+    "output": "/home/rtw/projects/audr32/vm/build/stack.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Isrc/include",
+      "-o",
+      "build/common.o",
+      "src/common.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/common.c",
+    "output": "/home/rtw/projects/audr32/vm/build/common.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Isrc/include",
+      "-o",
+      "build/arithmetic.o",
+      "src/arithmetic.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/arithmetic.c",
+    "output": "/home/rtw/projects/audr32/vm/build/arithmetic.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Isrc/include",
+      "-o",
+      "build/kbd.o",
+      "src/kbd.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/kbd.c",
+    "output": "/home/rtw/projects/audr32/vm/build/kbd.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Isrc/include",
+      "-o",
+      "build/interrupts.o",
+      "src/interrupts.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/interrupts.c",
+    "output": "/home/rtw/projects/audr32/vm/build/interrupts.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Isrc/include",
+      "-o",
+      "build/vm.o",
+      "src/vm.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/vm.c",
+    "output": "/home/rtw/projects/audr32/vm/build/vm.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Isrc/include",
+      "-o",
+      "build/screen.o",
+      "src/screen.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/screen.c",
+    "output": "/home/rtw/projects/audr32/vm/build/screen.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Isrc/include",
+      "-o",
+      "build/io.o",
+      "src/io.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/io.c",
+    "output": "/home/rtw/projects/audr32/vm/build/io.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Isrc/include",
+      "-o",
+      "build/misc.o",
+      "src/misc.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/misc.c",
+    "output": "/home/rtw/projects/audr32/vm/build/misc.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Isrc/include",
+      "-o",
+      "build/main.o",
+      "src/main.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/main.c",
+    "output": "/home/rtw/projects/audr32/vm/build/main.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-Isrc/include",
+      "-o",
+      "build/pointer.o",
+      "src/pointer.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/pointer.c",
+    "output": "/home/rtw/projects/audr32/vm/build/pointer.o"
+  }
+]

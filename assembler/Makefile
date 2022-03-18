@@ -6,7 +6,6 @@ OUT = assemble
 SOURCE_DIR = src
 BIN_DIR = bin
 BUILD_DIR = build
-
 CC = gcc
 CFLAGS = -g -O0 -I$(SOURCE_DIR)/include
 

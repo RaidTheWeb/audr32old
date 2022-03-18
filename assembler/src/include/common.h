@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+uint16_t ensurebig16(uint16_t num);
+uint32_t ensurebig32(uint32_t num);
+
 uint32_t hashstring(char *str);
 char *getfilebase(char *path);
 char *removeext(char *filename);

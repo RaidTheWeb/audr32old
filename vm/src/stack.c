@@ -58,7 +58,7 @@ void dopop(opcodepre_t prefix) {
 void dopush(opcodepre_t prefix) {
     switch(prefix.mode) {
         case PUSH_REG: {
-            uint8_t reg = READ_BYTE();
+        uint8_t reg = READ_BYTE();
             PUSH(GET_REGISTER32(reg));
             break;
         }

@@ -2,6 +2,7 @@
 #define __VM_H__
 
 #include <stdint.h>
+#include <stddef.h>
 
 #include "common.h"
 #include "io.h"

@@ -146,15 +146,15 @@ void skipwhitespace(struct Lexer *lexer) {
 }
 
 void skipcomment(struct Lexer *lexer) {
-    if(lexer->current == ';')
-        while(lexer->current != '\n')
-            nextchar(lexer);
+    if(lexer->current == ';') {
+        while(lexer->current != '\n') nextchar(lexer);
         lexer->line++; // increment line because newline
         lexer->charpos = 0; // reset character position
+    }
 }
 
 void lexerabort(struct Lexer *lexer, char *message) {
-    printf("Assembler lexer error: %s (Line %d, Character %d)\n", message, lexer->line, lexer->charpos);
+    printf("Assembler lexer error: %s (Line %lu, Character %lu)\n", message, lexer->line, lexer->charpos);
     exit(1);
 }
 

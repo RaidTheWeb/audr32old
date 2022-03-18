@@ -59,7 +59,8 @@ static void screen_tick(device_t *dev) {
 
     size_t k = 0;
     for(size_t i = 0; i < WINDOW_WIDTH * WINDOW_HEIGHT * 4; i+=4) {
-        uint32_t data =  *(uint32_t *)&vm.memory[ADDR_FRAMEBUFFER + i];
+        uint32_t data =  ensurebig32(*(uint32_t *)&vm.memory[ADDR_FRAMEBUFFER + i]);
+        if(data) printf("screen: 0x%08x\n", data);
         framebuffer[k++] = data;
     }
 

@@ -13,6 +13,8 @@ int interruptpending = 0;
 interrupt_t interruptbuffer[MAX_INTERRUPTS + 1];
 int interruptpointer = 0;
 
+struct IoTable iotable;
+struct InterruptDescriptorTable idtable;
 
 int currentmode = 0;
 
@@ -30,9 +32,12 @@ static void removeBuffer(int index) {
     interruptpointer--;
 }
 
+void handleint(interrupt_t);
+
 void interrupt_trigger(uint16_t src, uint16_t num) {
     interruptpending = 1;
     interrupt_t inter = { .busid = src, .num = num };
+    handleint(inter);
     interruptbuffer[interruptpointer++] = inter;
 }
 
@@ -44,6 +49,18 @@ interrupt_t interrupt_read() {
     interrupt_t inter = interruptbuffer[interruptpointer--];
     if(interruptpointer < 0) interruptpending = 0;
     return inter;
+}
+
+void handleint(interrupt_t interrupt) {
+    if(iotable.ioentries[interrupt.num].set) {
+        iotable.ioentries[interrupt.num].handle();
+    }
+    if(idtable.intent[interrupt.num].set) {
+        *vm.stacktop = vm.regs[REG_IP];
+        vm.stacktop++;
+        vm.regs[REG_SP]++;
+        vm.regs[REG_IP] = idtable.intent[interrupt.num].addr;
+    }
 }
 
 void wait_until_triggered(uint16_t busid, uint16_t num) {
@@ -87,6 +104,18 @@ static void interrupt_pull(device_t *dev, uint32_t data) {
             case 0xFFFF: { // Set table
                 printf("Attempting to set table located at 0x%08x\n", data);
                 // Implement interrupt table logic here >//<
+                uint8_t entries = *(uint8_t *)&vm.memory[data++];
+                printf("interrupt controller: entries=%u\n", entries);
+                for(size_t i = 0; i < entries; i += 5) {
+                    uint8_t num = *(uint8_t *)&vm.memory[data + i];
+                    uint32_t addr = ensurebig32(*(uint32_t *)&vm.memory[data + i + 1]);
+                    printf("interrupt number: 0x%02x 0x%08x\n", num, addr);
+                    idtent_t idtentry = {
+                        .set = 1,
+                        .addr = addr
+                    };
+                    idtable.intent[num] = idtentry;
+                }
                 currentmode = 0;
                 break;
             }
@@ -95,6 +124,10 @@ static void interrupt_pull(device_t *dev, uint32_t data) {
                 break;
         }
     }
+}
+
+static void test_handleint(void) {
+    printf("test interrupt handler called!\n");
 }
 
 void interrupt_init() {
@@ -106,5 +139,11 @@ void interrupt_init() {
         .destroy = NULL
     };
     strncpy(devcopy.name, "intcontr", sizeof(devcopy.name));
+
+    /*iotableent_t entry = {
+        .set = 1,
+        .handle = test_handleint
+    };
+    iotable.ioentries[0x01] = entry;*/
     vm.devices[0x0002] = devcopy;
 }

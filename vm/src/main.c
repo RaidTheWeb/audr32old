@@ -91,6 +91,7 @@ int main(int argc, char **argv) {
         free(buffer);
         return 1;
     }*/
+    printf("0x%08x\n", ensurebig32(*(uint16_t *)&buffer[0]));
     if(!disassemble)
         run(buffer, size);
     else

@@ -3,12 +3,15 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include "common.h"
 #include "compiler.h"
 #include "datamap.h"
 #include "emitter.h"
 #include "lexer.h"
+
+
 
 /*********************************************************************
  * Audr32 Assembler
@@ -17,6 +20,7 @@
  * Do everything needed in here. >//<
  * Assembler specification is in `../ASM.txt`
  *********************************************************************/
+
 
 compilerjob_t job;
 struct Emitter emitter;
@@ -62,6 +66,8 @@ static uint8_t resolveregister(char *text) {
     DEF_REG(r13, 0x0F)
     DEF_REG(r14, 0x10)
     DEF_REG(r15, 0x11)
+
+    return 0x00; // NULL (Should not be reached)
 }
 
 static char *resolvetoken(int type) {
@@ -118,6 +124,7 @@ static char *resolvetoken(int type) {
         case TOK_SUB:               return "SUB";
         case TOK_XOR:               return "XOR";
     }
+    return "NOOP"; // Default to NOOP
 }
 
 static int checktoken(struct Parser *parser, int type) {
@@ -334,6 +341,9 @@ int compiler(char *buffer, char *output) {
     }
 
     printf("main labelmap: 0x%08x\n", labelmapget(labels, "main")->value);
+    //emitbyte32(&emitter, 0x000000FF);
 
     writefile(&emitter);
+
+    return 0;
 }

@@ -1,6 +1,8 @@
 #ifndef __EMITTER_H__
 #define __EMITTER_H__
 
+#include <stdint.h>
+
 struct Emitter {
     char fullPath[1024];
     uint8_t *code;

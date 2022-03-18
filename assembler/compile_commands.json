@@ -1,0 +1,92 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-O0",
+      "-Isrc/include",
+      "-o",
+      "build/common.o",
+      "src/common.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/assembler",
+    "file": "/home/rtw/projects/audr32/assembler/src/common.c",
+    "output": "/home/rtw/projects/audr32/assembler/build/common.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-O0",
+      "-Isrc/include",
+      "-o",
+      "build/compiler.o",
+      "src/compiler.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/assembler",
+    "file": "/home/rtw/projects/audr32/assembler/src/compiler.c",
+    "output": "/home/rtw/projects/audr32/assembler/build/compiler.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-O0",
+      "-Isrc/include",
+      "-o",
+      "build/datamap.o",
+      "src/datamap.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/assembler",
+    "file": "/home/rtw/projects/audr32/assembler/src/datamap.c",
+    "output": "/home/rtw/projects/audr32/assembler/build/datamap.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-O0",
+      "-Isrc/include",
+      "-o",
+      "build/emitter.o",
+      "src/emitter.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/assembler",
+    "file": "/home/rtw/projects/audr32/assembler/src/emitter.c",
+    "output": "/home/rtw/projects/audr32/assembler/build/emitter.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-O0",
+      "-Isrc/include",
+      "-o",
+      "build/lexer.o",
+      "src/lexer.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/assembler",
+    "file": "/home/rtw/projects/audr32/assembler/src/lexer.c",
+    "output": "/home/rtw/projects/audr32/assembler/build/lexer.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-O0",
+      "-Isrc/include",
+      "-o",
+      "build/main.o",
+      "src/main.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/assembler",
+    "file": "/home/rtw/projects/audr32/assembler/src/main.c",
+    "output": "/home/rtw/projects/audr32/assembler/build/main.o"
+  }
+]

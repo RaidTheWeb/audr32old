@@ -35,6 +35,18 @@ uint32_t ensurebig32(uint32_t num) {
     return num;
 }
 
+uint32_t ensurelittle32(uint32_t num) {
+    uint32_t i = 1;
+    char *c = (char *)&i;
+    if(*c) { // little endian, ensure swapped to little endian because no data passed in here should be little endian in the first place.
+        return swapendian(num); // swap to little endian as the way memory is stored forces it.
+    } else {
+        // do nothing because it's big endian (meaning that ensurance later will not cause issues.)
+        return num; // we do not need to swap our big endian input data to little endian because data storage is already big endian, the later ensurebig32() call will not need to do anything for us, causing no issue further down the line.
+    }
+
+} 
+
 uint32_t hashstring(char *str) {
     uint32_t hash = 2166136261u;
     for(int i = 0; i < strlen(str); i++) {

@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -129,6 +130,37 @@ static void interrupt_pull(device_t *dev, uint32_t data) {
 static void test_handleint(void) {
     printf("test interrupt handler called!\n");
 }
+
+
+#define INT_DAT 0x00
+#define INT_REG 0x01
+#define INT_PTR 0x02
+
+void doint(opcodepre_t prefix) {
+    switch(prefix.mode) {
+        case INT_DAT: {
+            uint32_t num = READ_BYTE32();
+            interrupt_trigger(0x0002, num); // SRC: Interrupt Controller
+            break;
+        }
+        case INT_REG: {
+            uint32_t num = GET_REGISTER32(READ_BYTE());
+            interrupt_trigger(0x0002, num); // SRC: Interrupt Controller
+            break;
+        }
+        case INT_PTR: {
+            uint32_t num = GET_PTR(READ_PTR());
+            interrupt_trigger(0x0002, num); // SRC: Interrupt Controller
+            break;
+        }
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+}
+
+
 
 void interrupt_init() {
     struct Device devcopy = {

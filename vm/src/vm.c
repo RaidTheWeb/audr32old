@@ -49,6 +49,7 @@ void SET_REGISTER(uint8_t reg, registeruni_t value) {
 /** Misc */
 void domov(opcodepre_t);
 //void dordtsc(opcodepre_t);
+void doint(opcodepre_t);
 void dojmp(opcodepre_t);
 void dojnz(opcodepre_t);
 void dojz(opcodepre_t);
@@ -94,6 +95,9 @@ static int doopcode(opcodepre_t opcodeprefix) {
             return NORMOP;
         case OP_MOV:
             domov(opcodeprefix);
+            return NORMOP;
+        case OP_INT:
+            doint(opcodeprefix);
             return NORMOP;
         /*case OP_RDTSC:
             dordtsc(opcodeprefix);

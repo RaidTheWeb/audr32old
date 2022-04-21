@@ -4,13 +4,18 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <SDL2/SDL.h>
+
 #include "vm.h"
 #include "common.h"
 #include "interrupts.h"
 
 struct VM vm;
 
-#define TICKSPEED 1 // MS (1000Hz)
+#define CLOCKSPEED 10000 // HZ
+#define FPS 60
+#define TPF 1
+#define TICKSPEED (FPS * TPF) // MS (1000Hz)
 
 #define HALTOP 0x34
 #define NORMOP 0x35
@@ -53,6 +58,10 @@ void doint(opcodepre_t);
 void dojmp(opcodepre_t);
 void dojnz(opcodepre_t);
 void dojz(opcodepre_t);
+void dojg(opcodepre_t);
+void dojge(opcodepre_t);
+void dojl(opcodepre_t);
+void dojle(opcodepre_t);
 
 /** Procedures */
 void docall(opcodepre_t);
@@ -87,6 +96,7 @@ void door(opcodepre_t);
 void donot(opcodepre_t);
 
 static int doopcode(opcodepre_t opcodeprefix) {
+    //printf("instruction: 0x%02x, mode: 0x%02x \n", opcodeprefix.instruction, opcodeprefix.mode);
     switch(opcodeprefix.instruction) {
         /** Misc */
         case OP_HALT:
@@ -97,7 +107,9 @@ static int doopcode(opcodepre_t opcodeprefix) {
             domov(opcodeprefix);
             return NORMOP;
         case OP_INT:
+           // printf("vm: int instruction!\n");
             doint(opcodeprefix);
+            //printf("vm: handled int instruction!\n");
             return NORMOP;
         /*case OP_RDTSC:
             dordtsc(opcodeprefix);
@@ -111,10 +123,24 @@ static int doopcode(opcodepre_t opcodeprefix) {
         case OP_JZ:
             dojz(opcodeprefix);
             return NORMOP;
+        case OP_JL:
+            dojl(opcodeprefix);
+            return NORMOP;
+        case OP_JLE:
+            dojle(opcodeprefix);
+            return NORMOP;
+        case OP_JG:
+            dojg(opcodeprefix);
+            return NORMOP;
+        case OP_JGE:
+            dojge(opcodeprefix);
+            return NORMOP;
+
 
         /** Procedures */
         case OP_CALL: {
             uint32_t loc = READ_BYTE32();
+            printf("call 0x%08x\n", loc);
             *vm.stacktop = vm.regs[REG_IP];
             vm.stacktop++;
 
@@ -124,7 +150,9 @@ static int doopcode(opcodepre_t opcodeprefix) {
         case OP_RET: {
             uint32_t loc;
             vm.stacktop--;
-            vm.regs[REG_IP] = *vm.stacktop;
+            loc = *vm.stacktop;
+            printf("ret 0x%08x\n", *vm.stacktop);
+            vm.regs[REG_IP] = loc;
             return NORMOP;
         }
 
@@ -232,15 +260,18 @@ void run(uint8_t *source, size_t datalength) {
     }
 
     vm.datalength = datalength;
-    //vm.ip = 0; // should point to the offset of which to load the image in memory.
-    vm.regs[REG_IP] = 0;
+    vm.regs[REG_IP] = 0; // should point to the offset of which to load the image in memory.
     vm.stacktop = vm.stack; // make stacktop point to stack
     vm.tsc = 0; // ensure ticks are at zero
-    srand(time(NULL));
+    srand(time(NULL)); // seed the random number generator
 
     interrupt_init();
     screen_init();
     kbd_init();
+
+
+tickinit:
+    printf("Initialising devices... (tick)\n");
 
     // initialise devices
     FOR_DEVICES(id, dev) {
@@ -248,21 +279,58 @@ void run(uint8_t *source, size_t datalength) {
         dev->tick(dev);
     }
 
+/*    vm.memory[1000] = 0xFF;
+    vm.memory[1001] = 0x22;
+    ptr_t pointer;
+    pointer.ptrmode = PTR16; // 16-bit
+    pointer.addr = 1000;
+    printf("0x%04x\n", GET_PTR(pointer));
+    SET_PTR(pointer, 0x1);
+    printf("0x%04x\n", GET_PTR(pointer));
+    exit(1);*/
+
+//    goto tickinit;
+    
+    int ticks = 0;
+    uint32_t tick_start = SDL_GetTicks();
+    uint32_t tick_end = SDL_GetTicks();
+
     for(;;) {
-        //if(vm.regs[REG_IP] >= vm.datalength) ceaseop();
-        opcodepre_t opcodeprefix;
-        opcodeprefix.instruction = READ_BYTE();
-        opcodeprefix.mode = READ_BYTE();
-        int result = doopcode(opcodeprefix);
-        if(result == HALTOP) halt();
-        //wait_until_triggered(0x0001, 0x0001);
-        vm.tsc++; // increase tick count
-        msleep(TICKSPEED); // Sleep required tickspeed
-        FOR_DEVICES(id, dev) {
-            if(dev->id == 0 || !dev->tick) continue;
-            dev->tick(dev);
+        int dueticks = SDL_GetTicks() - tick_start;
+
+        tick_start = SDL_GetTicks();
+
+        if(!dueticks)
+            dueticks = 1;
+
+        int cyclespertick = CLOCKSPEED/TICKSPEED/dueticks;
+        int extracycles = CLOCKSPEED/TICKSPEED - (cyclespertick*dueticks);
+
+        for(size_t i = 0; i < dueticks; i++) {
+            int cyclesleft = cyclespertick;
+
+            if(i == dueticks - 1)
+                cyclesleft += extracycles;
+
+            FOR_DEVICES(id, dev) {
+                if(dev->id == 0 || !dev->tick || dev->set != 1) continue;
+                dev->tick(dev);
+            }
+            
+            while(cyclesleft > 0) {
+                cyclesleft--; 
+                opcodepre_t opcodeprefix;
+                opcodeprefix.instruction = READ_BYTE();
+                opcodeprefix.mode = READ_BYTE();
+                int result = doopcode(opcodeprefix);
+                if(result == HALTOP) halt();
+            }
         }
-        
+
+        if((ticks%TPF) == 0) {
+            void screen_blit(device_t *dev);
+            screen_blit(&vm.devices[0x0003]);
+        }
         printf("+==== Register Dump ====+\n");
         printf("AX: 0x%08x (%u)\n", GET_REGISTER32(REG_AX), GET_REGISTER32(REG_AX));
         printf("BX: 0x%08x (%u)\n", GET_REGISTER32(REG_BX), GET_REGISTER32(REG_BX));
@@ -283,8 +351,75 @@ void run(uint8_t *source, size_t datalength) {
         printf("R15: 0x%08x (%u)\n", GET_REGISTER32(REG_R15), GET_REGISTER32(REG_R15));
         printf("TSC: 0x%08x (%u)\n", vm.tsc, vm.tsc);
         printf("+==== Register Dump ====+\n");
-        
+
+
+        ticks++;
+        vm.tsc++;
+
+        tick_end = SDL_GetTicks();
+        int delay = 1000/TICKSPEED - (tick_end - tick_start);
+        if(delay > 0) {
+            SDL_Delay(delay);
+        }
     }
+
+
+//  for(;;) {
+/*
+        opcodepre_t opcodeprefix;
+        opcodeprefix.instruction = READ_BYTE();
+        opcodeprefix.mode = READ_BYTE();
+        int result = doopcode(opcodeprefix);
+        if(result == HALTOP) halt();
+        //wait_until_triggered(0x0001, 0x0001);
+        vm.tsc++; // increase tick count
+        //printf("increased tick count\n");
+        
+        FOR_DEVICES(id, dev) {
+            if(dev->id == 0 || !dev->tick || dev->set != 1) {
+            } else {
+            //    printf("ticking device %llu, set: %u\n", id, dev->set);
+                dev->tick(dev);
+              //  printf("finished ticking device %llu\n", id);
+            }
+        }
+
+*/
+   
+    
+    
+
+
+
+
+
+
+
+
+
+
+        /*printf("+==== Register Dump ====+\n");
+        printf("AX: 0x%08x (%u)\n", GET_REGISTER32(REG_AX), GET_REGISTER32(REG_AX));
+        printf("BX: 0x%08x (%u)\n", GET_REGISTER32(REG_BX), GET_REGISTER32(REG_BX));
+        printf("CX: 0x%08x (%u)\n", GET_REGISTER32(REG_CX), GET_REGISTER32(REG_CX));
+        printf("DX: 0x%08x (%u)\n", GET_REGISTER32(REG_DX), GET_REGISTER32(REG_DX));
+        printf("SI: 0x%08x (%u)\n", GET_REGISTER32(REG_SI), GET_REGISTER32(REG_SI));
+        printf("DI: 0x%08x (%u)\n", GET_REGISTER32(REG_DI), GET_REGISTER32(REG_DI));
+        printf("SP: 0x%08x (%u)\n", GET_REGISTER32(REG_SP), GET_REGISTER32(REG_SP));
+        printf("BP: 0x%08x (%u)\n", GET_REGISTER32(REG_BP), GET_REGISTER32(REG_BP));
+        printf("IP: 0x%08x (%u)\n", GET_REGISTER32(REG_IP), GET_REGISTER32(REG_IP));
+        printf("R8: 0x%08x (%u)\n", GET_REGISTER32(REG_R8), GET_REGISTER32(REG_R8));
+        printf("R9: 0x%08x (%u)\n", GET_REGISTER32(REG_R9), GET_REGISTER32(REG_R9));
+        printf("R10: 0x%08x (%u)\n", GET_REGISTER32(REG_R10), GET_REGISTER32(REG_R10));
+        printf("R11: 0x%08x (%u)\n", GET_REGISTER32(REG_R11), GET_REGISTER32(REG_R11));
+        printf("R12: 0x%08x (%u)\n", GET_REGISTER32(REG_R12), GET_REGISTER32(REG_R12));
+        printf("R13: 0x%08x (%u)\n", GET_REGISTER32(REG_R13), GET_REGISTER32(REG_R13));
+        printf("R14: 0x%08x (%u)\n", GET_REGISTER32(REG_R14), GET_REGISTER32(REG_R14));
+        printf("R15: 0x%08x (%u)\n", GET_REGISTER32(REG_R15), GET_REGISTER32(REG_R15));
+        printf("TSC: 0x%08x (%u)\n", vm.tsc, vm.tsc);
+        printf("+==== Register Dump ====+\n");*/
+                
+   // }
 
     for(;;); // hang "CPU" (Out of instructions/Halted)
 }

@@ -1,0 +1,21 @@
+11:02pm~: (Tuesday, 12th April 2022)
+
+Macros are now implemented!
+
+Constants can be defined and so can the "origin", the latter of which just changes the current position of emitted data.
+
+Sections are now implemented!
+
+The user can now define a .text section (for code) and a .data section (for raw binary data).
+
+    .data section operators include:
+
+        - .byte <data>              (insert a single 8 bit integer)
+        - .word <data>              (insert a single 16 bit integer)
+        - .dword <data>             (insert a single 32 bit integer)
+        - .ascii <string>           (insert a string with now null termination)
+        - .asciiz/.string <string>  (insert a null terminated string)
+
+Next Steps:
+
+Iron out bugs, improve instruction set, trial SubC

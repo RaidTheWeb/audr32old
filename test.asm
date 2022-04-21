@@ -20,3 +20,4 @@ main:
 loop:
     halt
     jnz loop, r9 ; loop halt
+

@@ -126,12 +126,12 @@ void doinx(opcodepre_t prefix) {
 #define OUT_REGREG 0x00
 #define OUT_REGPTR 0x01
 #define OUT_REGDAT 0x02
-#define OUT_PTRPTR 0x03
-#define OUT_PTRDAT 0x04
-#define OUT_PTRREG 0x05
-#define OUT_DATDAT 0x06
+#define OUT_PTRREG 0x03
+#define OUT_PTRPTR 0x04
+#define OUT_PTRDAT 0x05
+#define OUT_DATREG 0x06
 #define OUT_DATPTR 0x07
-#define OUT_DATREG 0x08
+#define OUT_DATDAT 0x08
 
 void dooutx(opcodepre_t prefix) {
     switch(prefix.mode) {

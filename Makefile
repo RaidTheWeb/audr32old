@@ -1,5 +1,5 @@
 #
-#	VM Main Makefile
+# VM Main Makefile
 #
 
 .PHONY: all clean

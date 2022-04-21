@@ -9,6 +9,7 @@
 
 typedef struct Device {
     uint16_t id;
+    uint8_t set; // to ensure working
     char name[32];
     void *state;
     void (*tick)(struct Device *);

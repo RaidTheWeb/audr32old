@@ -7,15 +7,19 @@
 #include "common.h"
 #include "io.h"
 
-#define ADDR_FRAMEBUFFER 0x000B8000
+#define ADDR_FRAMEBUFFER    0x00F0000
+#define ADDR_TEXTMODE       0x00B8000
+
+#define FUNNY_NUMBER 0xDEADBEEF
 
 
-#define MAX_REGS 17
+#define MAX_REGS            17
+#define MAX_FLAGS           8
 
 // do some crazy cool shit here, maybe commit some war crimes. >//<
 
 struct VM {
-    uint8_t memory[KB * 512]; // uh oh stinky area (512KB of general purpose memory)
+    uint8_t memory[MB * 4]; // 4MB of general purpose memory
     size_t datalength;
     uint32_t ip;
 
@@ -23,6 +27,7 @@ struct VM {
     uint32_t *stacktop;
 
     uint32_t regs[MAX_REGS + 1]; // registers
+    uint8_t flags[MAX_FLAGS + 1]; // flags
     uint32_t tsc; // timestamp counter
 
     device_t devices[MAX_PORTS];
@@ -36,11 +41,23 @@ typedef struct {
 } opcodepre_t;
 
 enum {
+    FLAG_CF             =           0x00,           // Carry flag
+    FLAG_PF             =           0x01,           // Parity flag
+    FLAG_ZF             =           0x02,           // Zero flag
+    FLAG_SF             =           0x03,           // Sign flag
+    FLAG_TF             =           0x04,           // Trap flag (Debug)
+    FLAG_IF             =           0x05,           // Interrupt flag
+    FLAG_DF             =           0x06,           // Direction flag
+    FLAG_OF             =           0x07            // Overflow flag
+};
+
+enum {
     /** Misc */
     OP_NOOP             =           0x00,           // Perform no operation
     OP_HALT             =           0x01,           // Halt operation
     OP_MOV              =           0x02,           // Move data
     OP_INT              =           0x03,           // Call interrupt
+    
     OP_JMP              =           0x04,           // Jump
     OP_JNZ              =           0x05,           // Jump if not zero
     OP_JZ               =           0x06,           // Jump if zero
@@ -74,7 +91,13 @@ enum {
     OP_SHR              =           0x1A,           // Shift Right
     OP_XOR              =           0x1B,           // Exclusive OR
     OP_OR               =           0x1C,           // Logical OR
-    OP_NOT              =           0x1D            // Logical NOT
+    OP_NOT              =           0x1D,           // Logical NOT
+
+    /** Extra Misc */
+    OP_JL               =           0x1E,           // Jump if less-than
+    OP_JLE              =           0x1F,           // Jump if less-than or equal to
+    OP_JG               =           0x20,           // Jump if greater-than
+    OP_JGE              =           0x23,           // Jump if greater-than or equal to
 };
 
 enum {
@@ -104,13 +127,16 @@ enum {
 //#define READ_PTR16(addr) (uint16_t *)&vm.memory[addr];
 //#define READ_PTR32(addr) (uint32_t *)&vm.memory[addr];
 
-#define PTR8    0x01
-#define PTR16   0x02
-#define PTR32   0x03
-#define PTRREG  0x04
+#define PTR8        0x01
+#define PTR16       0x02
+#define PTR32       0x03
+#define PTRREG8     0x04
+#define PTRREG16    0x05
+#define PTRREG32    0x06
 
 typedef struct {
     uint8_t ptrmode; // Pointer Mode (1: 8 bit, 2: 16 bit, 3: 32 bit)
+    uint32_t addr; // Pointer reference address
     union {
         uint8_t *u8;
         uint16_t *u16;
@@ -119,8 +145,16 @@ typedef struct {
 } ptr_t;
 
 ptr_t READ_PTR(void);
-void SET_PTR(ptr_t pointer);
+void SET_PTR(ptr_t pointer, uint32_t byproduct);
 uint32_t GET_PTR(ptr_t pointer);
+
+#define GET_PTR8(pointer) (vm.memory[pointer.addr])
+#define SET_PTR8(pointer, value) (vm.memory[pointer.addr] = (value))
+#define GET_PTR16(pointer) ((vm.memory[pointer.addr] << 8) | vm.memory[pointer.addr + 1])
+#define SET_PTR16(pointer, value) ((vm.memory[pointer.addr] = (value) >> 8)&(vm.memory[pointer.addr + 1] = (value)))
+#define GET_PTR32(pointer) (((vm.memory[pointer.addr] << 8) | vm.memory[pointer.addr + 1]) << 16) + ((vm.memory[pointer.addr + 2] << 8) | vm.memory[pointer.addr + 3])
+#define SET_PTR32(pointer, value) ((vm.memory[pointer.addr] = (value) >> 24)&(vm.memory[pointer.addr + 1] = (value) >> 16)&(vm.memory[pointer.addr + 2] = (value) >> 8)&(vm.memory[pointer.addr + 3] = (value)))
+#define INCR_PTR(pointer, value) (SET_PTR(pointer, GET_PTR(pointer) + value))
 
 typedef union {
     uint8_t u8;

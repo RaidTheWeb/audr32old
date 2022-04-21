@@ -2,6 +2,7 @@
 #define __COMMON_H__
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define BYTE 1
 #define KB BYTE * 1024
@@ -19,5 +20,15 @@ char *getfilebase(char *path);
 char *removeext(char *filename);
 char *concatstr(const char *prefix, const char *suffix);
 int msleep(long tms);
+int nsleep(long long tns);
+
+typedef struct {
+    uint32_t *pixeldata;
+    uint32_t w;
+    uint32_t h;
+} image_t;
+
+uint32_t getpixel(image_t image, uint32_t x, uint32_t y);
+void initimage(image_t *image, uint8_t *imagedata, size_t length);
 
 #endif

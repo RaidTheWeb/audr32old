@@ -47,6 +47,18 @@ int checkifkeyword(char *text) {
         return TOK_JNZ;
     } else if(strcmp(text, "jz") == 0) {
         return TOK_JZ;
+    } else if(strcmp(text, "jne") == 0) {
+        return TOK_JNE;
+    } else if(strcmp(text, "je") == 0) {
+        return TOK_JE;
+    } else if(strcmp(text, "jl") == 0) {
+        return TOK_JL;
+    } else if(strcmp(text, "jle") == 0) {
+        return TOK_JLE;
+    } else if(strcmp(text, "jg") == 0) {
+        return TOK_JG;
+    } else if(strcmp(text, "jge") == 0) {
+        return TOK_JGE;
     } else if(strcmp(text, "call") == 0) {
         return TOK_CALL;
     } else if(strcmp(text, "ret") == 0) {
@@ -166,7 +178,7 @@ struct Token gettoken(struct Lexer *lexer) {
     if(lexer->current == '+')
         inittokenc(&token, lexer->current, TOK_PLUS);
     else if(lexer->current == '-')
-        inittokenc(&token, lexer->current, TOK_SUB);
+        inittokenc(&token, lexer->current, TOK_MINUS);
     else if(lexer->current == '*')
         inittokenc(&token, lexer->current, TOK_ASTERISK);
     else if(lexer->current == '/')
@@ -187,6 +199,10 @@ struct Token gettoken(struct Lexer *lexer) {
         inittokenc(&token, lexer->current, TOK_LBRACKET);
     else if(lexer->current == ')')
         inittokenc(&token, lexer->current, TOK_RBRACKET);
+    else if(lexer->current == '#')
+        inittokenc(&token, lexer->current, TOK_HASHTAG);
+    else if(lexer->current == '.')
+        inittokenc(&token, lexer->current, TOK_PERIOD);
     else if(lexer->current == '\"') {
         nextchar(lexer);
         int startpos = lexer->pos;
@@ -287,8 +303,10 @@ struct Token gettoken(struct Lexer *lexer) {
         lexer->charpos = 0;
     } else if(lexer->current == '\0')
         inittokenc(&token, '\0', TOK_EOF);
-    else
+    else {
+        printf("%c\n", lexer->current);
         lexerabort(lexer, "Unknown Token");
+    }
     
     nextchar(lexer);
     return token;

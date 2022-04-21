@@ -9,6 +9,7 @@ static void PUSH(uint32_t value) {
     *vm.stacktop = value;
     vm.stacktop++;
     vm.regs[REG_SP]++;
+    printf("god has forced my hand. 0x%08x\n", value);
 }
 
 static uint32_t POP() {
@@ -32,14 +33,19 @@ void dopop(opcodepre_t prefix) {
             
             switch(pointer.ptrmode) {
                 case PTR8:
-                    *(pointer.ptrv.u8) = (uint8_t)POP();
+                case PTRREG8:
+//                    *(pointer.ptrv.u8) = ensurelittle32(POP());
+                    SET_PTR(pointer, POP());
                     break;
                 case PTR16:
-                    *(pointer.ptrv.u16) = (uint16_t)POP();
+                case PTRREG16:
+//                    *(pointer.ptrv.u16) = ensurelittle32(POP());
+                    SET_PTR(pointer, POP());
                     break;
                 case PTR32:
-                case PTRREG:
-                    *(pointer.ptrv.u32) = POP();
+                case PTRREG32:
+//                    *(pointer.ptrv.u32) = ensurelittle32(POP());
+                    SET_PTR(pointer, POP());
                     break;
             }
             break;
@@ -58,7 +64,7 @@ void dopop(opcodepre_t prefix) {
 void dopush(opcodepre_t prefix) {
     switch(prefix.mode) {
         case PUSH_REG: {
-        uint8_t reg = READ_BYTE();
+            uint8_t reg = READ_BYTE();
             PUSH(GET_REGISTER32(reg));
             break;
         }

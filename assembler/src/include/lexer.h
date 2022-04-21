@@ -17,6 +17,7 @@ enum {
     TOK_RBRACKET                =               9,
     TOK_HASHTAG                 =               10,
     TOK_PERIOD                  =               11,
+    TOK_DOLLAR                  =               12,
 
     TOK_LABEL                   =               101,
 

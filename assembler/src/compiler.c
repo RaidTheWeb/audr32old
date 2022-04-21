@@ -166,7 +166,7 @@ static void checknewline(struct Parser *parser) {
 static void parsesymbol(struct Parser *parser) {
     struct Token labeltok = parser->curtoken;
     printf("reference to %s\n", labeltok.text);
-    nexttoken(parser);
+    nexttoken(parser); 
     struct LabelMapPair *label = labelmapget(labels, labeltok.text);
     if(!(label == NULL)) {
         emitbyte32(&emitter, label->value); // emit label
@@ -300,6 +300,7 @@ static void parsemov(struct Parser *parser) {
 }
 
 static void parsejmp(struct Parser *parser) {
+    uint32_t start = emitter.written;
     emitbyte(&emitter, 0x04); // JMP
     if(checktoken(parser, TOK_REGISTER)) {
         emitbyte(&emitter, 0x00); // REG
@@ -318,11 +319,17 @@ static void parsejmp(struct Parser *parser) {
     } else if(checktoken(parser, TOK_LABEL)) {
         emitbyte(&emitter, 0x02); // DAT
         parsesymbol(parser);
+    } else if(checktoken(parser, TOK_DOLLAR)) {
+        emitbyte(&emitter, 0x02); // DAT
+        emitbyte32(&emitter, start);
+        match(parser, TOK_DOLLAR);
     }
 }
 
 static void parsejnz(struct Parser *parser) {
+    uint32_t start = emitter.written;
     emitbyte(&emitter, 0x05); // JNZ
+
     // DEST
     if(checktoken(parser, TOK_NUMBER))  {
         emitbyte(&emitter, 0x02);
@@ -342,10 +349,15 @@ static void parsejnz(struct Parser *parser) {
     } else if(checktoken(parser, TOK_LSQUARE)) {
         emitbyte(&emitter, 0x01); // PTR
         parseptr(parser);
+    } else if(checktoken(parser, TOK_DOLLAR)) {
+        emitbyte(&emitter, 0x02); // DAT
+        emitbyte32(&emitter, start);
+        match(parser, TOK_DOLLAR);
     }
 }
 
 static void parsejz(struct Parser *parser) {
+    uint32_t start = emitter.written;
     emitbyte(&emitter, 0x06); // JZ
     // DEST
     if(checktoken(parser, TOK_NUMBER))  {
@@ -366,10 +378,15 @@ static void parsejz(struct Parser *parser) {
     } else if(checktoken(parser, TOK_LSQUARE)) {
         emitbyte(&emitter, 0x01); // PTR
         parseptr(parser);
+    } else if(checktoken(parser, TOK_DOLLAR)) {
+        emitbyte(&emitter, 0x02); // DAT
+        emitbyte32(&emitter, start);
+        match(parser, TOK_DOLLAR);
     }
 }
 
 static void parsejl(struct Parser *parser) {
+    uint32_t start = emitter.written;
     emitbyte(&emitter, 0x1E); // JL
     // DEST
     if(checktoken(parser, TOK_NUMBER))  {
@@ -390,11 +407,16 @@ static void parsejl(struct Parser *parser) {
     } else if(checktoken(parser, TOK_LSQUARE)) {
         emitbyte(&emitter, 0x01); // PTR
         parseptr(parser);
-    } 
+    }  else if(checktoken(parser, TOK_DOLLAR)) {
+        emitbyte(&emitter, 0x02); // DAT
+        emitbyte32(&emitter, start);
+        match(parser, TOK_DOLLAR);
+    }
 }
 
 
 static void parsejle(struct Parser *parser) {
+    uint32_t start = emitter.written;
     emitbyte(&emitter, 0x1F); // JLE
     // DEST
     if(checktoken(parser, TOK_NUMBER))  {
@@ -415,10 +437,15 @@ static void parsejle(struct Parser *parser) {
     } else if(checktoken(parser, TOK_LSQUARE)) {
         emitbyte(&emitter, 0x01); // PTR
         parseptr(parser);
+    } else if(checktoken(parser, TOK_DOLLAR)) {
+        emitbyte(&emitter, 0x02); // DAT
+        emitbyte32(&emitter, start);
+        match(parser, TOK_DOLLAR);
     }
 }
 
 static void parsejg(struct Parser *parser) {
+    uint32_t start = emitter.written;
     emitbyte(&emitter, 0x20); // JG
     // DEST
     if(checktoken(parser, TOK_NUMBER))  {
@@ -439,10 +466,15 @@ static void parsejg(struct Parser *parser) {
     } else if(checktoken(parser, TOK_LSQUARE)) {
         emitbyte(&emitter, 0x01); // PTR
         parseptr(parser);
+    } else if(checktoken(parser, TOK_DOLLAR)) {
+        emitbyte(&emitter, 0x02); // DAT
+        emitbyte32(&emitter, start);
+        match(parser, TOK_DOLLAR);
     }
 }
 
 static void parsejge(struct Parser *parser) {
+    uint32_t start = emitter.written;
     emitbyte(&emitter, 0x21); // JGE
     // DEST
     if(checktoken(parser, TOK_NUMBER))  {
@@ -463,6 +495,10 @@ static void parsejge(struct Parser *parser) {
     } else if(checktoken(parser, TOK_LSQUARE)) {
         emitbyte(&emitter, 0x01); // PTR
         parseptr(parser);
+    } else if(checktoken(parser, TOK_DOLLAR)) {
+        emitbyte(&emitter, 0x02); // DAT
+        emitbyte32(&emitter, start);
+        match(parser, TOK_DOLLAR);
     }
 
 }
@@ -1157,6 +1193,8 @@ static void parseperiod(struct Parser *parser) {
             } else if(checktoken(parser, TOK_CHAR)) {
                 emitbyte(&emitter, (char)parser->curtoken.text[0]);
                 match(parser, TOK_CHAR);
+            } else if(checktoken(parser, TOK_LABEL)) {
+                parsesymbol(parser);
             }
         } else if(strcmp(operator.text, "word") == 0) { // 16 bit integer
             if(checktoken(parser, TOK_NUMBER)) {
@@ -1165,6 +1203,8 @@ static void parseperiod(struct Parser *parser) {
             } else if(checktoken(parser, TOK_CHAR)) {
                 emitbyte16(&emitter, (char)parser->curtoken.text[0]);
                 match(parser, TOK_CHAR);
+            } else if(checktoken(parser, TOK_LABEL)) {
+                parsesymbol(parser);
             }
         } else if(strcmp(operator.text, "dword") == 0) { // 32 bit integer
             if(checktoken(parser, TOK_NUMBER)) {
@@ -1173,6 +1213,8 @@ static void parseperiod(struct Parser *parser) {
             } else if(checktoken(parser, TOK_CHAR)) {
                 emitbyte32(&emitter, (char)parser->curtoken.text[0]);
                 match(parser, TOK_CHAR);
+            } else if(checktoken(parser, TOK_LABEL)) {
+                parsesymbol(parser);
             }
         } else if((strcmp(operator.text, "asciiz") == 0) || (strcmp(operator.text, "string") == 0)) { // NULL terminated string
             struct Token data = parser->curtoken;

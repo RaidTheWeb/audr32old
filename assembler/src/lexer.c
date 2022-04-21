@@ -203,6 +203,8 @@ struct Token gettoken(struct Lexer *lexer) {
         inittokenc(&token, lexer->current, TOK_HASHTAG);
     else if(lexer->current == '.')
         inittokenc(&token, lexer->current, TOK_PERIOD);
+    else if(lexer->current == '$')
+        inittokenc(&token, lexer->current, TOK_DOLLAR); // basically the only thing we'll use it for
     else if(lexer->current == '\"') {
         nextchar(lexer);
         int startpos = lexer->pos;

@@ -437,7 +437,7 @@ void screen_init() {
         SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_TARGET,
         WINDOW_WIDTH, WINDOW_HEIGHT
     );
-    pthread_create(&screen_blit_th, NULL, (void *(*)(void *))screen_blit, &vm.devices[0x0003]);
+    pthread_create(&screen_blit_th, NULL, (void *(*)(void *))screen_blit, &vm.devices[0x0003]); // initial blit (ensure non-blocking)
 
     drawrect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, parsebg(0x0000));
     font = bitmap_font;

@@ -238,27 +238,21 @@ static void keyboardservices_handleint() {
             // zf(flag): available (0 if yes, 1 if no)
             uint8_t data = 0;
             if(kbd_read_i == kbd_write_i) {
-                printf("data is not available, setting zero flag and clearing registers\n");
                 vm.regs[REG_R8] = 0x00;
                 vm.regs[REG_R9] = 0x00;
                 vm.flags[FLAG_ZF] = 1;
-                printf("done setting registers and zero flag\n");
-
             } else {
-                printf("data is available, clearing zero flag and setting registers\n");
                 uint8_t data;
                 data = kbd_buf[kbd_read_i]; 
                 uint8_t ascii;
                 ascii = ascii_buf[ascii_read_i]; 
-
                 vm.regs[REG_R8] = data;
                 vm.regs[REG_R9] = ascii;
                 vm.flags[FLAG_ZF] = 0;
             }
             break;
         } 
-    }
-    printf("finished handling keyboard services interrupt!\n");
+    } 
 } 
 
 static void kbd_pull(device_t *dev, uint32_t data) {
@@ -280,8 +274,7 @@ void kbd_set_data(device_t *dev, uint8_t scancode) {
     ascii_write_i %= 2048;
 
     interrupt_trigger(KBD_PORT, KBD_INTNUM); // Trigger interrupt on port 0x0001 with the interrupt number 0x0001
-    if(scancode > 0x7D) return;
-    printf("keyboard 0x%02x %c\n", scancode, ASCIITable[scancode]);
+    if(scancode > 0x7D) return; 
 }
 
 static void kbd_tick(device_t *dev) {

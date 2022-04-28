@@ -1,7 +1,7 @@
 # Audr32 (Audrey) CPU
 
 A 32 bit CPU I've been working on for a bit, trying to make it run its own Operating System written in C or something.
-Audr32 is inspired by other ISAs like x86, limn2600, and jdh8.
+Audr32 is inspired by other ISAs like x86 (mostly x86), limn2600, and jdh8.
 
 ## Building
 

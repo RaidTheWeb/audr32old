@@ -8,8 +8,7 @@
 static void PUSH(uint32_t value) {
     *vm.stacktop = value;
     vm.stacktop++;
-    vm.regs[REG_SP]++;
-    printf("god has forced my hand. 0x%08x\n", value);
+    vm.regs[REG_SP]++; 
 }
 
 static uint32_t POP() {

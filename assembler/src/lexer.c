@@ -170,15 +170,67 @@ void lexerabort(struct Lexer *lexer, char *message) {
     exit(1);
 }
 
-struct Token gettoken(struct Lexer *lexer) {
+struct Token gettoken(struct Lexer *lexer) { 
     skipwhitespace(lexer);
     skipcomment(lexer);
     struct Token token;
 
     if(lexer->current == '+')
         inittokenc(&token, lexer->current, TOK_PLUS);
-    else if(lexer->current == '-')
-        inittokenc(&token, lexer->current, TOK_MINUS);
+    else if(lexer->current == '-') {
+        if (isdigit(peek(lexer))) {
+            nextchar(lexer);
+            if(peek(lexer) == 'x') {
+                nextchar(lexer);
+                nextchar(lexer);
+                int startpos = lexer->pos;
+                while(isxdigit(peek(lexer)))
+                    nextchar(lexer);
+
+                int32_t num = -strtol(substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), NULL, 16);
+                char buffer[256];
+                itoa(num, buffer, 10);
+
+
+                inittoken(&token, buffer, TOK_NUMBER);
+            } else if(peek(lexer) == 'b') {
+                nextchar(lexer);
+                nextchar(lexer);
+                int startpos = lexer->pos;
+                while(isdigit(peek(lexer)))
+                    nextchar(lexer);
+
+                int32_t num = -strtol(substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), NULL, 2);
+                char buffer[256];
+                itoa(num, buffer, 10);
+
+
+                inittoken(&token, buffer, TOK_NUMBER);
+            } else if(peek(lexer) == 'o') {
+                nextchar(lexer);
+                nextchar(lexer);
+                int startpos = lexer->pos;
+                while(isdigit(peek(lexer)))
+                    nextchar(lexer);
+
+                int32_t num = -strtol(substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), NULL, 8);
+                char buffer[256];
+                itoa(num, buffer, 10);
+
+
+                inittoken(&token, buffer, TOK_NUMBER);
+            } else {
+                int startpos = lexer->pos - 1;
+
+                while(isdigit(peek(lexer)))
+                    nextchar(lexer);
+
+                inittoken(&token, substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), TOK_NUMBER);
+            }
+        } else {
+            inittokenc(&token, lexer->current, TOK_MINUS);
+        }
+    } 
     else if(lexer->current == '*')
         inittokenc(&token, lexer->current, TOK_ASTERISK);
     else if(lexer->current == '/')

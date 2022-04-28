@@ -1,3 +1,8 @@
 assembler/bin/**
 vm/bin/**
 .vscode/**
+assembler/build/**
+vm/build/**
+assembler/.cache/**
+vm/.cache/**
+kernel/

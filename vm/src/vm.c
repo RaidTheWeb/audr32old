@@ -12,10 +12,10 @@
 
 struct VM vm;
 
-#define CLOCKSPEED 10000 // HZ
+#define CLOCKSPEED 100000 // HZ
 #define FPS 60
 #define TPF 1
-#define TICKSPEED (FPS * TPF) // MS (1000Hz)
+#define TICKSPEED (FPS * TPF) // TPS
 
 #define HALTOP 0x34
 #define NORMOP 0x35
@@ -139,8 +139,10 @@ static int doopcode(opcodepre_t opcodeprefix) {
 
         /** Procedures */
         case OP_CALL: {
-            uint32_t loc = READ_BYTE32();
-            printf("call 0x%08x\n", loc);
+            uint32_t loc = 0;
+            if(opcodeprefix.mode == 0x00) loc = READ_BYTE32();
+            else if(opcodeprefix.mode == 0x01) loc = GET_PTR(READ_PTR());
+            else return NORMOP; // TODO: proper mode error handling
             *vm.stacktop = vm.regs[REG_IP];
             vm.stacktop++;
 
@@ -151,7 +153,6 @@ static int doopcode(opcodepre_t opcodeprefix) {
             uint32_t loc;
             vm.stacktop--;
             loc = *vm.stacktop;
-            printf("ret 0x%08x\n", *vm.stacktop);
             vm.regs[REG_IP] = loc;
             return NORMOP;
         }
@@ -175,24 +176,16 @@ static int doopcode(opcodepre_t opcodeprefix) {
         /** Arithmetic */
         case OP_ADD:
             doadd(opcodeprefix);
-            return NORMOP;
-        case OP_IADD:
-            return NORMOP;
+            return NORMOP; 
         case OP_SUB:
             dosub(opcodeprefix);
             return NORMOP;
-        case OP_ISUB:
-            return NORMOP;
         case OP_DIV:
             dodiv(opcodeprefix);
-            return NORMOP;
-        case OP_IDIV:
-            return NORMOP;
+            return NORMOP; 
         case OP_MUL:
             domul(opcodeprefix);
-            return NORMOP;
-        case OP_IMUL:
-            return NORMOP;
+            return NORMOP; 
         case OP_INC:
             doinc(opcodeprefix);
             return NORMOP;
@@ -220,6 +213,9 @@ static int doopcode(opcodepre_t opcodeprefix) {
         case OP_NOT:
             donot(opcodeprefix);
             return NORMOP;
+        
+        /** FUNNIES */
+        
     }
     return NORMOP;
 }
@@ -267,29 +263,13 @@ void run(uint8_t *source, size_t datalength) {
 
     interrupt_init();
     screen_init();
-    kbd_init();
-
-
-tickinit:
-    printf("Initialising devices... (tick)\n");
+    kbd_init(); 
 
     // initialise devices
     FOR_DEVICES(id, dev) {
         if(dev->id == 0 || !dev->tick) continue;
         dev->tick(dev);
     }
-
-/*    vm.memory[1000] = 0xFF;
-    vm.memory[1001] = 0x22;
-    ptr_t pointer;
-    pointer.ptrmode = PTR16; // 16-bit
-    pointer.addr = 1000;
-    printf("0x%04x\n", GET_PTR(pointer));
-    SET_PTR(pointer, 0x1);
-    printf("0x%04x\n", GET_PTR(pointer));
-    exit(1);*/
-
-//    goto tickinit;
     
     int ticks = 0;
     uint32_t tick_start = SDL_GetTicks();
@@ -311,11 +291,6 @@ tickinit:
 
             if(i == dueticks - 1)
                 cyclesleft += extracycles;
-
-            FOR_DEVICES(id, dev) {
-                if(dev->id == 0 || !dev->tick || dev->set != 1) continue;
-                dev->tick(dev);
-            }
             
             while(cyclesleft > 0) {
                 cyclesleft--; 
@@ -331,26 +306,32 @@ tickinit:
             void screen_blit(device_t *dev);
             screen_blit(&vm.devices[0x0003]);
         }
-        printf("+==== Register Dump ====+\n");
-        printf("AX: 0x%08x (%u)\n", GET_REGISTER32(REG_AX), GET_REGISTER32(REG_AX));
-        printf("BX: 0x%08x (%u)\n", GET_REGISTER32(REG_BX), GET_REGISTER32(REG_BX));
-        printf("CX: 0x%08x (%u)\n", GET_REGISTER32(REG_CX), GET_REGISTER32(REG_CX));
-        printf("DX: 0x%08x (%u)\n", GET_REGISTER32(REG_DX), GET_REGISTER32(REG_DX));
-        printf("SI: 0x%08x (%u)\n", GET_REGISTER32(REG_SI), GET_REGISTER32(REG_SI));
-        printf("DI: 0x%08x (%u)\n", GET_REGISTER32(REG_DI), GET_REGISTER32(REG_DI));
-        printf("SP: 0x%08x (%u)\n", GET_REGISTER32(REG_SP), GET_REGISTER32(REG_SP));
-        printf("BP: 0x%08x (%u)\n", GET_REGISTER32(REG_BP), GET_REGISTER32(REG_BP));
-        printf("IP: 0x%08x (%u)\n", GET_REGISTER32(REG_IP), GET_REGISTER32(REG_IP));
-        printf("R8: 0x%08x (%u)\n", GET_REGISTER32(REG_R8), GET_REGISTER32(REG_R8));
-        printf("R9: 0x%08x (%u)\n", GET_REGISTER32(REG_R9), GET_REGISTER32(REG_R9));
-        printf("R10: 0x%08x (%u)\n", GET_REGISTER32(REG_R10), GET_REGISTER32(REG_R10));
-        printf("R11: 0x%08x (%u)\n", GET_REGISTER32(REG_R11), GET_REGISTER32(REG_R11));
-        printf("R12: 0x%08x (%u)\n", GET_REGISTER32(REG_R12), GET_REGISTER32(REG_R12));
-        printf("R13: 0x%08x (%u)\n", GET_REGISTER32(REG_R13), GET_REGISTER32(REG_R13));
-        printf("R14: 0x%08x (%u)\n", GET_REGISTER32(REG_R14), GET_REGISTER32(REG_R14));
-        printf("R15: 0x%08x (%u)\n", GET_REGISTER32(REG_R15), GET_REGISTER32(REG_R15));
-        printf("TSC: 0x%08x (%u)\n", vm.tsc, vm.tsc);
-        printf("+==== Register Dump ====+\n");
+
+        FOR_DEVICES(id, dev) {
+            if(dev->id == 0 || !dev->tick || dev->set != 1) continue;
+            dev->tick(dev);
+        }
+
+        /*printf("+==== Register Dump ====+\n");
+        printf("AX: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_AX), GET_REGISTER32(REG_AX), GET_REGISTER32(REG_AX));
+        printf("BX: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_BX), GET_REGISTER32(REG_BX), GET_REGISTER32(REG_BX));
+        printf("CX: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_CX), GET_REGISTER32(REG_CX), GET_REGISTER32(REG_CX));
+        printf("DX: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_DX), GET_REGISTER32(REG_DX), GET_REGISTER32(REG_DX));
+        printf("SI: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_SI), GET_REGISTER32(REG_SI), GET_REGISTER32(REG_SI));
+        printf("DI: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_DI), GET_REGISTER32(REG_DI), GET_REGISTER32(REG_DI));
+        printf("SP: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_SP), GET_REGISTER32(REG_SP), GET_REGISTER32(REG_SP));
+        printf("BP: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_BP), GET_REGISTER32(REG_BP), GET_REGISTER32(REG_BP));
+        printf("IP: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_IP), GET_REGISTER32(REG_IP), GET_REGISTER32(REG_IP));
+        printf("R8: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R8), GET_REGISTER32(REG_R8), GET_REGISTER32(REG_R8));
+        printf("R9: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R9), GET_REGISTER32(REG_R9), GET_REGISTER32(REG_R9));
+        printf("R10: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R10), GET_REGISTER32(REG_R10), GET_REGISTER32(REG_R10));
+        printf("R11: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R11), GET_REGISTER32(REG_R11), GET_REGISTER32(REG_R11));
+        printf("R12: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R12), GET_REGISTER32(REG_R12), GET_REGISTER32(REG_R12));
+        printf("R13: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R13), GET_REGISTER32(REG_R13), GET_REGISTER32(REG_R13));
+        printf("R14: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R14), GET_REGISTER32(REG_R14), GET_REGISTER32(REG_R14));
+        printf("R15: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R15), GET_REGISTER32(REG_R15), GET_REGISTER32(REG_R15));
+        printf("TSC: 0x%08x (%u/%d)\n", vm.tsc, vm.tsc, vm.tsc);
+        printf("+==== Register Dump ====+\n");*/
 
 
         ticks++;
@@ -362,64 +343,6 @@ tickinit:
             SDL_Delay(delay);
         }
     }
-
-
-//  for(;;) {
-/*
-        opcodepre_t opcodeprefix;
-        opcodeprefix.instruction = READ_BYTE();
-        opcodeprefix.mode = READ_BYTE();
-        int result = doopcode(opcodeprefix);
-        if(result == HALTOP) halt();
-        //wait_until_triggered(0x0001, 0x0001);
-        vm.tsc++; // increase tick count
-        //printf("increased tick count\n");
-        
-        FOR_DEVICES(id, dev) {
-            if(dev->id == 0 || !dev->tick || dev->set != 1) {
-            } else {
-            //    printf("ticking device %llu, set: %u\n", id, dev->set);
-                dev->tick(dev);
-              //  printf("finished ticking device %llu\n", id);
-            }
-        }
-
-*/
-   
-    
-    
-
-
-
-
-
-
-
-
-
-
-        /*printf("+==== Register Dump ====+\n");
-        printf("AX: 0x%08x (%u)\n", GET_REGISTER32(REG_AX), GET_REGISTER32(REG_AX));
-        printf("BX: 0x%08x (%u)\n", GET_REGISTER32(REG_BX), GET_REGISTER32(REG_BX));
-        printf("CX: 0x%08x (%u)\n", GET_REGISTER32(REG_CX), GET_REGISTER32(REG_CX));
-        printf("DX: 0x%08x (%u)\n", GET_REGISTER32(REG_DX), GET_REGISTER32(REG_DX));
-        printf("SI: 0x%08x (%u)\n", GET_REGISTER32(REG_SI), GET_REGISTER32(REG_SI));
-        printf("DI: 0x%08x (%u)\n", GET_REGISTER32(REG_DI), GET_REGISTER32(REG_DI));
-        printf("SP: 0x%08x (%u)\n", GET_REGISTER32(REG_SP), GET_REGISTER32(REG_SP));
-        printf("BP: 0x%08x (%u)\n", GET_REGISTER32(REG_BP), GET_REGISTER32(REG_BP));
-        printf("IP: 0x%08x (%u)\n", GET_REGISTER32(REG_IP), GET_REGISTER32(REG_IP));
-        printf("R8: 0x%08x (%u)\n", GET_REGISTER32(REG_R8), GET_REGISTER32(REG_R8));
-        printf("R9: 0x%08x (%u)\n", GET_REGISTER32(REG_R9), GET_REGISTER32(REG_R9));
-        printf("R10: 0x%08x (%u)\n", GET_REGISTER32(REG_R10), GET_REGISTER32(REG_R10));
-        printf("R11: 0x%08x (%u)\n", GET_REGISTER32(REG_R11), GET_REGISTER32(REG_R11));
-        printf("R12: 0x%08x (%u)\n", GET_REGISTER32(REG_R12), GET_REGISTER32(REG_R12));
-        printf("R13: 0x%08x (%u)\n", GET_REGISTER32(REG_R13), GET_REGISTER32(REG_R13));
-        printf("R14: 0x%08x (%u)\n", GET_REGISTER32(REG_R14), GET_REGISTER32(REG_R14));
-        printf("R15: 0x%08x (%u)\n", GET_REGISTER32(REG_R15), GET_REGISTER32(REG_R15));
-        printf("TSC: 0x%08x (%u)\n", vm.tsc, vm.tsc);
-        printf("+==== Register Dump ====+\n");*/
-                
-   // }
 
     for(;;); // hang "CPU" (Out of instructions/Halted)
 }

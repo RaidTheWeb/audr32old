@@ -98,6 +98,8 @@ enum {
     OP_JLE              =           0x1F,           // Jump if less-than or equal to
     OP_JG               =           0x20,           // Jump if greater-than
     OP_JGE              =           0x23,           // Jump if greater-than or equal to
+
+    /** FUNNIES */
 };
 
 enum {

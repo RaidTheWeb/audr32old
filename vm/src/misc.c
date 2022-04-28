@@ -14,14 +14,13 @@
 #define MOV_PTRPTR 0x05
 
 void domov(opcodepre_t prefix) {
-    printf("doing mov instruction!\n");
+    
     switch(prefix.mode) {
         case MOV_REGDAT: {
             uint8_t reg = READ_BYTE();
             registeruni_t reguni;
             reguni.u32 = READ_BYTE32();
             SET_REGISTER(reg, reguni);
-            printf("^ REG DAT (0x%02x, 0x%08x)\n", reg, reguni.u32);
             break;
         }
         case MOV_REGREG: {
@@ -30,7 +29,6 @@ void domov(opcodepre_t prefix) {
             registeruni_t reguni;
             reguni.u32 = GET_REGISTER32(src);
             SET_REGISTER(dest, reguni);
-            printf("^ REG REG (0x%02x, 0x%02x)\n", dest, src);
             break;
         }
         case MOV_REGPTR: {
@@ -38,8 +36,7 @@ void domov(opcodepre_t prefix) {
             ptr_t pointer = READ_PTR();
             registeruni_t reguni;
             reguni.u32 = GET_PTR(pointer);
-            SET_REGISTER(reg, reguni);
-            printf("^ REG PTR (0x%02x, 0x%08x)\n", reg, pointer.addr);
+            SET_REGISTER(reg, reguni); 
             break;
         }
         case MOV_PTRREG: {
@@ -236,8 +233,7 @@ void dojnz(opcodepre_t prefix) {
         case JNZ_DAT: {
             uint32_t location = READ_BYTE32();
 
-            if(!vm.flags[FLAG_ZF]) {
-                printf("Jumping to location 0x%08x (ZF is not set)\n", location);
+            if(!vm.flags[FLAG_ZF]) { 
                 vm.regs[REG_IP] = location;
             }
             break;

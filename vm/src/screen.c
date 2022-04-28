@@ -191,28 +191,22 @@ static void screen_tick(device_t *dev) {
 }
 
 void screen_blit(device_t *dev) {
-    //while(!stop) {
-        printf("blitting screen!\n");
-        size_t k = 0;
-        for(size_t i = 0; i < WINDOW_WIDTH * WINDOW_HEIGHT * 4; i+=4) { 
-            ptr_t pointer = {
-                .addr = ADDR_FRAMEBUFFER + i,
-                .ptrmode = 0x03, // 32 bit
-            };  
-            uint32_t data = GET_PTR(pointer);
-            framebuffer[k++] = data;
-        }
+    size_t k = 0;
+    for(size_t i = 0; i < WINDOW_WIDTH * WINDOW_HEIGHT * 4; i+=4) { 
+        ptr_t pointer = {
+            .addr = ADDR_FRAMEBUFFER + i,
+            .ptrmode = 0x03, // 32 bit
+        };  
+        uint32_t data = GET_PTR(pointer);
+        framebuffer[k++] = data;
+    }
 
-        SDL_UpdateTexture(texture, NULL, framebuffer, WINDOW_WIDTH*sizeof(uint32_t));
+    SDL_UpdateTexture(texture, NULL, framebuffer, WINDOW_WIDTH*sizeof(uint32_t));
 
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-        SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, texture, NULL, NULL);
-        SDL_RenderPresent(renderer);
-
-    //    SDL_Delay(16); // 16 FPS?
-        printf("finished blitting!\n");
-    //}
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
 }
 
 static void setpixel(uint32_t x, uint32_t y, uint32_t colour) {
@@ -271,9 +265,7 @@ static void drawchar(char c, int x, int y, uint32_t hex_fg, uint32_t hex_bg) {
             setpixel(x++, y, bit_test(glyph[i], j) ? hex_fg : hex_bg);
         y++;
         x = orig_x;
-    }
-
-    printf("after drawing char ax: 0x%08x\n", vm.regs[REG_AX]);
+    } 
 
     return;
 }
@@ -381,10 +373,9 @@ static void videoservice_handleint(void) {
         default: { // DRAW CHARACTER (TELETYPE, AUTOMATIC HANDLING OF SPECIAL TELETYPE INTERFACE FEATURES)
             // dx: character
             // bx: colour
-            printf("in interrupt ax: 0x%08x\n", vm.regs[REG_AX]);
+           
             char c = vm.regs[REG_DX];
             if(charx >= WINDOW_WIDTH || c == 0x0A) {
-                printf("funny? (x=%d (y=%d), c=%c)\n", charx, chary, c);
                 chary += bitmap_font_height;
                 charx = -bitmap_font_width;
                 if(c == 0x0A) return;
@@ -400,8 +391,7 @@ static void videoservice_handleint(void) {
                     charx = -bitmap_font_width;
                 }
                 return;
-            }
-            printf("drawing char c=%c, x=%d, y=%d, fg=0x%02x, bg=0x%02x\n", c, charx, chary, parsefg(vm.regs[REG_BX]), parsebg(vm.regs[REG_BX]));
+            } 
             drawchar(c, charx += bitmap_font_width, chary, parsefg(vm.regs[REG_BX]), parsebg(vm.regs[REG_BX])); 
             break;
         }
@@ -440,13 +430,7 @@ void screen_init() {
     pthread_create(&screen_blit_th, NULL, (void *(*)(void *))screen_blit, &vm.devices[0x0003]); // initial blit (ensure non-blocking)
 
     drawrect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, parsebg(0x0000));
-    font = bitmap_font;
-
-    /*SDL_Surface *imagesurface = SDL_LoadBMP("test.bmp");
-    SDL_Texture *splash = SDL_CreateTextureFromSurface(renderer, imagesurface);
-    SDL_Rect dstrect = { 5, 5, 150, 150 };
-    SDL_RenderCopy(renderer, splash, NULL, &dstrect);
-    SDL_RenderPresent(renderer);*/
+    font = bitmap_font; 
 
     vm.devices[0x0003] = devcopy;
 

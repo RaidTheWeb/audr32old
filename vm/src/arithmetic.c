@@ -837,7 +837,7 @@ void donot(opcodepre_t prefix) {
         case NOT_PTR: {
             ptr_t pointer = READ_PTR();
             
-            SET_PTR(pointer, GET_PTR(pointer) ^ -1);
+            SET_PTR(pointer, ~GET_PTR(pointer));
             break;
         }
         default:

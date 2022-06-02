@@ -9,7 +9,7 @@ BUILD_DIR = build
 
 CC = gcc
 AS = nasm
-CFLAGS = -g -I$(SOURCE_DIR)/include -lSDL2
+CFLAGS = -g -O0 -I$(SOURCE_DIR)/include -lSDL2
 
 HEADERS = $(wildcard $(SOURCE_DIR)/include/*.h)
 SOURCES = $(shell find $(SOURCE_DIR) -type f -name '*.c')

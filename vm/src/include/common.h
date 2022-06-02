@@ -21,6 +21,7 @@ char *removeext(char *filename);
 char *concatstr(const char *prefix, const char *suffix);
 int msleep(long tms);
 int nsleep(long long tns);
+char *itoa(uint64_t value, char str[], int radix);
 
 typedef struct {
     uint32_t *pixeldata;

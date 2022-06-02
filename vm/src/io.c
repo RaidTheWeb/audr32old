@@ -29,8 +29,6 @@ void io_remove_device(uint16_t busid) {
     }
 }
 
-#define PORT_TSC 0x0000
-
 static uint32_t inx(uint16_t port) {
     if(port >= MAX_PORTS) {
         printf("Instruction attempted to access illegal I/O port, somehow. (code: 0x%04x)\n", port);
@@ -39,24 +37,12 @@ static uint32_t inx(uint16_t port) {
     }
 
     device_t *dev;
-
-    switch(port) {
-        case PORT_TSC: {
-            return vm.tsc;
-        }
-        default: {
-            dev = &vm.devices[port];
-            if(dev->id != 0) {
-                if(!dev->poll) {
-                    printf("Instruction attempted to poll I/O device that does not implement such method! (code: 0x%04x, '%s')\n", port, dev->name);
-                    exit(1);
-                    return 0;
-                } else {
-                    return dev->poll(dev);
-                }
-            }
-        }
+    if(!vm.ports[port].set) {
+        printf("Instruction attempted to poll I/O device that does not implement such method! (code: 0x%04x, '%s')\n", port, dev->name);
+        exit(1);
+        return 0;
     }
+    return vm.ports[port].read(port);
 
     return 0;
 }
@@ -70,27 +56,11 @@ static void outx(uint16_t port, uint32_t data) {
 
     device_t *dev;
 
-    switch(port) {
-        case PORT_TSC: {
-            return; // read-only (ignore)
-        }
-        default: {
-            dev = &vm.devices[port];
-            if(dev->id != 0) {
-                if(!dev->pull) {
-                    printf("Instruction attempted to pull I/O device that does not implement such method! (code: 0x%04x, '%s')\n", port, dev->name);
-                    exit(1);
-                    return;
-                } else {
-                    dev->pull(dev, data);
-                }
-            } else {
-                printf("Instruction attempted to pull unused I/O port (code: 0x%04x, 0x%08x)\n", port, data);
-                exit(1);
-                return;
-            }
-        }
+    if(!vm.ports[port].set) {
+        printf("Instruction attempted to poll I/O device that does not implement such method! (code: 0x%04x, '%s')\n", port, dev->name);
+        exit(1);
     }
+    vm.ports[port].write(port, data);
 }
 
 #define INX_REG 0x00

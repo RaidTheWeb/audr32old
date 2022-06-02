@@ -57,6 +57,22 @@ enum {
     TOK_XOR                     =               135,
     TOK_OR                      =               136,
     TOK_NOT                     =               137,
+    TOK_SETEQ                   =               138,
+    TOK_SETNE                   =               139,
+    TOK_SETLT                   =               140,
+    TOK_SETGT                   =               141,
+    TOK_SETLE                   =               142,
+    TOK_SETGE                   =               143,
+    TOK_LEA                     =               144,
+    TOK_NEG                     =               145,
+    TOK_TEST                    =               146,
+    TOK_CLD                     =               147,
+    TOK_LODSB                   =               148,
+    TOK_LODSW                   =               149,
+    TOK_LODSD                   =               150,
+    TOK_LOOP                    =               151,
+    TOK_PUSHA                   =               152,
+    TOK_POPA                    =               153,
 
     TOK_PLUS                    =               201,
     TOK_MINUS                   =               202,
@@ -86,10 +102,9 @@ struct Token {
 
 void inittoken(struct Token *token, char *text, int type);
 void inittokenc(struct Token *token, char text, int type);
-int checkifkeyword(char *text);
-void nextchar(struct Lexer *);
+int checkifkeyword(char *text, struct Lexer *lexer, int startofline);
+void nextchar(struct Lexer *lexer, int whitespace);
 void initlexer(struct Lexer *lexer, char *source);
-void nextchar(struct Lexer *lexer);
 char peek(struct Lexer *lexer);
 void skipwhitespace(struct Lexer *lexer);
 void skipcomment(struct Lexer *lexer);

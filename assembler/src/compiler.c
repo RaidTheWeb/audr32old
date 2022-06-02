@@ -24,7 +24,7 @@
 
 compilerjob_t job;
 struct Emitter emitter;
-struct LabelMapPair *labels[SIZE];
+labelmap_t *labels; 
 
 struct Relocatable {
     char *symbol;
@@ -32,7 +32,7 @@ struct Relocatable {
     uint8_t mode; // 0x01, 0x02, 0x03 (8 bit, 16 bit, and 32 bit respectively)
 };
 
-struct Relocatable *relocatables[SIZE];
+struct Relocatable *relocatables[INITIAL_CAPACITY];
 int relocatablepointer = 0;
 
 struct Parser {
@@ -59,14 +59,22 @@ static uint8_t resolveregister(char *text) {
     DEF_REG(sp, 0x07)
     DEF_REG(bp, 0x08)
     DEF_REG(ip, 0x09)
-    DEF_REG(r8, 0x0A)
-    DEF_REG(r9, 0x0B)
-    DEF_REG(r10, 0x0C)
-    DEF_REG(r11, 0x0D)
-    DEF_REG(r12, 0x0E)
-    DEF_REG(r13, 0x0F)
-    DEF_REG(r14, 0x10)
-    DEF_REG(r15, 0x11)
+    DEF_REG(r0, 0x0A)
+    DEF_REG(r1, 0x0B)
+    DEF_REG(r2, 0x0C)
+    DEF_REG(r3, 0x0D)
+    DEF_REG(r4, 0x0E)
+    DEF_REG(r5, 0x0F)
+    DEF_REG(r6, 0x10)
+    DEF_REG(r7, 0x11)
+    DEF_REG(r8, 0x12)
+    DEF_REG(r9, 0x13)
+    DEF_REG(r10, 0x14)
+    DEF_REG(r11, 0x15)
+    DEF_REG(r12, 0x16)
+    DEF_REG(r13, 0x17)
+    DEF_REG(r14, 0x18)
+    DEF_REG(r15, 0x19)
 
     return 0x00; // NULL (Should not be reached)
 }
@@ -126,6 +134,22 @@ static char *resolvetoken(int type) {
         case TOK_STRING:            return "STRING";
         case TOK_SUB:               return "SUB";
         case TOK_XOR:               return "XOR";
+        case TOK_SETEQ:             return "SETEQ";
+        case TOK_SETNE:             return "SETNE";
+        case TOK_SETLT:             return "SETLT";
+        case TOK_SETGT:             return "SETGT";
+        case TOK_SETLE:             return "SETLE";
+        case TOK_SETGE:             return "SETGE";
+        case TOK_LEA:               return "LEA";
+        case TOK_NEG:               return "NEG";
+        case TOK_TEST:              return "TEST";
+        case TOK_CLD:               return "CLD";
+        case TOK_LODSB:             return "LODSB";
+        case TOK_LODSW:             return "LODSW";
+        case TOK_LODSD:             return "LODSD";
+        case TOK_LOOP:              return "LOOP";
+        case TOK_PUSHA:             return "PUSHA";
+        case TOK_POPA:              return "POPA";
     }
     return "NOOP"; // Default to NOOP
 }
@@ -151,7 +175,7 @@ static void nexttoken(struct Parser *parser, struct Lexer *lexer) {
 static void match(struct Parser *parser, struct Lexer *lexer, int type) {
     if(!checktoken(parser, type)) {
         char buf[128];
-        sprintf(buf, "Expected %s got %s", resolvetoken(type), resolvetoken(parser->curtoken.type));
+        sprintf(buf, "Expected %s got %s on line %lu", resolvetoken(type), resolvetoken(parser->curtoken.type), lexer->line);
         parserabort(buf);
     }
     nexttoken(parser, lexer);
@@ -165,13 +189,14 @@ static void checknewline(struct Parser *parser, struct Lexer *lexer) {
 
 static void parsesymbol(struct Parser *parser, struct Lexer *lexer) {
     struct Token labeltok = parser->curtoken;
-    printf("reference to %s\n", labeltok.text);
+    // printf("reference to %s\n", labeltok.text);
     nexttoken(parser, lexer); 
-    struct LabelMapPair *label = labelmapget(labels, labeltok.text);
+    labelmapent_t *label = labelmapget(labels, labeltok.text);
     if(!(label == NULL)) {
         emitbyte32(&emitter, label->value); // emit label
+        // printf("predefined label location: 0x%08x\n", label->value);
     } else {
-        printf("reference to a label that doesn't exist.\n");
+        // printf("reference to a label that doesn't exist.\n");
         uint32_t current = emitter.written;
         emitbyte32(&emitter, 0x00000000); // emit zeros (replace later)
         struct Relocatable *relocatable = (struct Relocatable *)malloc(sizeof(struct Relocatable *)); // 32 bit relocatable located at this address.
@@ -305,6 +330,7 @@ static void parsejmp(struct Parser *parser, struct Lexer *lexer) {
     if(checktoken(parser, TOK_REGISTER)) {
         emitbyte(&emitter, 0x00); // REG
         emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
     } else if(checktoken(parser, TOK_LSQUARE)) {
         emitbyte(&emitter, 0x01); // PTR
         parseptr(parser, lexer);
@@ -321,7 +347,7 @@ static void parsejmp(struct Parser *parser, struct Lexer *lexer) {
         parsesymbol(parser, lexer);
     } else if(checktoken(parser, TOK_DOLLAR)) {
         emitbyte(&emitter, 0x02); // DAT
-        emitbyte32(&emitter, start);
+        emitbyte32(&emitter, start + emitter.offset);
         match(parser, lexer, TOK_DOLLAR);
     }
 }
@@ -351,7 +377,7 @@ static void parsejnz(struct Parser *parser, struct Lexer *lexer) {
         parseptr(parser, lexer);
     } else if(checktoken(parser, TOK_DOLLAR)) {
         emitbyte(&emitter, 0x02); // DAT
-        emitbyte32(&emitter, start);
+        emitbyte32(&emitter, start + emitter.offset);
         match(parser, lexer, TOK_DOLLAR);
     }
 }
@@ -380,7 +406,7 @@ static void parsejz(struct Parser *parser, struct Lexer *lexer) {
         parseptr(parser, lexer);
     } else if(checktoken(parser, TOK_DOLLAR)) {
         emitbyte(&emitter, 0x02); // DAT
-        emitbyte32(&emitter, start);
+        emitbyte32(&emitter, start + emitter.offset);
         match(parser, lexer, TOK_DOLLAR);
     }
 }
@@ -409,7 +435,7 @@ static void parsejl(struct Parser *parser, struct Lexer *lexer) {
         parseptr(parser, lexer);
     }  else if(checktoken(parser, TOK_DOLLAR)) {
         emitbyte(&emitter, 0x02); // DAT
-        emitbyte32(&emitter, start);
+        emitbyte32(&emitter, start + emitter.offset);
         match(parser, lexer, TOK_DOLLAR);
     }
 }
@@ -439,7 +465,7 @@ static void parsejle(struct Parser *parser, struct Lexer *lexer) {
         parseptr(parser, lexer);
     } else if(checktoken(parser, TOK_DOLLAR)) {
         emitbyte(&emitter, 0x02); // DAT
-        emitbyte32(&emitter, start);
+        emitbyte32(&emitter, start + emitter.offset);
         match(parser, lexer, TOK_DOLLAR);
     }
 }
@@ -468,7 +494,7 @@ static void parsejg(struct Parser *parser, struct Lexer *lexer) {
         parseptr(parser, lexer);
     } else if(checktoken(parser, TOK_DOLLAR)) {
         emitbyte(&emitter, 0x02); // DAT
-        emitbyte32(&emitter, start);
+        emitbyte32(&emitter, start + emitter.offset);
         match(parser, lexer, TOK_DOLLAR);
     }
 }
@@ -497,12 +523,101 @@ static void parsejge(struct Parser *parser, struct Lexer *lexer) {
         parseptr(parser, lexer);
     } else if(checktoken(parser, TOK_DOLLAR)) {
         emitbyte(&emitter, 0x02); // DAT
-        emitbyte32(&emitter, start);
+        emitbyte32(&emitter, start + emitter.offset);
         match(parser, lexer, TOK_DOLLAR);
     }
 
 }
 
+static void parseseteq(struct Parser *parser, struct Lexer *lexer) {
+    uint32_t start = emitter.written;
+    emitbyte(&emitter, 0x22); // SETEQ
+    // DEST
+    if(checktoken(parser, TOK_REGISTER)) {
+        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        emitbyte(&emitter, 0x01); // PTR
+        parseptr(parser, lexer);
+    }
+
+}
+
+static void parsesetne(struct Parser *parser, struct Lexer *lexer) {
+    uint32_t start = emitter.written;
+    emitbyte(&emitter, 0x23); // SETNE
+    // DEST
+    if(checktoken(parser, TOK_REGISTER)) {
+        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        emitbyte(&emitter, 0x01); // PTR
+        parseptr(parser, lexer);
+    }
+
+}
+
+static void parsesetlt(struct Parser *parser, struct Lexer *lexer) {
+    uint32_t start = emitter.written;
+    emitbyte(&emitter, 0x24); // SETLT
+    // DEST
+    if(checktoken(parser, TOK_REGISTER)) {
+        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        emitbyte(&emitter, 0x01); // PTR
+        parseptr(parser, lexer);
+    }
+
+}
+
+static void parsesetgt(struct Parser *parser, struct Lexer *lexer) {
+    uint32_t start = emitter.written;
+    emitbyte(&emitter, 0x25); // SETGT
+    // DEST
+    if(checktoken(parser, TOK_REGISTER)) {
+        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        emitbyte(&emitter, 0x01); // PTR
+        parseptr(parser, lexer);
+    }
+
+}
+
+static void parsesetle(struct Parser *parser, struct Lexer *lexer) {
+    uint32_t start = emitter.written;
+    emitbyte(&emitter, 0x26); // SETLE
+    // DEST
+    if(checktoken(parser, TOK_REGISTER)) {
+        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        emitbyte(&emitter, 0x01); // PTR
+        parseptr(parser, lexer);
+    }
+
+}
+
+static void parsesetge(struct Parser *parser, struct Lexer *lexer) {
+    uint32_t start = emitter.written;
+    emitbyte(&emitter, 0x27); // SETGE
+    // DEST
+    if(checktoken(parser, TOK_REGISTER)) {
+        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        emitbyte(&emitter, 0x01); // PTR
+        parseptr(parser, lexer);
+    }
+
+}
 
 static void parsecmp(struct Parser *parser, struct Lexer *lexer) {
     emitbyte(&emitter, 0x17); // CMP
@@ -1121,6 +1236,118 @@ static void parsenot(struct Parser *parser, struct Lexer *lexer) {
     relocatebyte(&emitter, loc, mode); // set mode
 }
 
+static void parseneg(struct Parser *parser, struct Lexer *lexer) {
+    emitbyte(&emitter, 0x29); // NEG
+    uint32_t loc = emitter.written;
+    emitbyte(&emitter, 0x00); // mock mode
+    uint8_t mode = 0x00; // default (REGREG)
+    // DEST, SRC
+    if(checktoken(parser, TOK_REGISTER)) {
+        mode = 0x00; // REGXXX
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        mode = 0x01; // PTRXXX
+        parseptr(parser, lexer);
+    }
+
+    relocatebyte(&emitter, loc, mode); // set mode
+}
+
+static void parselea(struct Parser *parser, struct Lexer *lexer) {
+    emitbyte(&emitter, 0x28); // LEA
+    uint32_t loc = emitter.written;
+    emitbyte(&emitter, 0x00); // mock mode
+    uint8_t mode = 0x00; // default (REGREG)
+    // DEST, SRC
+    if(checktoken(parser, TOK_REGISTER)) {
+        mode = 0x00; // REGXXX
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        mode = 0x01; // PTRXXX
+        parseptr(parser, lexer);
+    }
+
+    match(parser, lexer, TOK_COMMA);
+
+    if(checktoken(parser, TOK_LSQUARE)) {
+        mode += 0; // XXXPTR
+        parseptr(parser, lexer);
+    }
+
+    relocatebyte(&emitter, loc, mode); // set mode
+}
+
+
+static void parsetest(struct Parser *parser, struct Lexer *lexer) {
+    emitbyte(&emitter, 0x2A); // TEST
+    uint32_t loc = emitter.written;
+    emitbyte(&emitter, 0x00); // mock mode
+    uint8_t mode = 0x00; // default (REGREG)
+    // DEST, SRC
+    if(checktoken(parser, TOK_REGISTER)) {
+        mode = 0x00; // REGXXX
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        mode = 0x03; // PTRXXX
+        parseptr(parser, lexer);
+    }
+
+    match(parser, lexer, TOK_COMMA);
+
+    if(checktoken(parser, TOK_NUMBER))  {
+        mode += 2; // XXXDAT
+        emitbyte32(&emitter, strtol(parser->curtoken.text, NULL, 10));
+        match(parser, lexer, TOK_NUMBER);
+    } else if(checktoken(parser, TOK_CHAR)) {
+        mode += 2; // XXXDAT
+        emitbyte32(&emitter, (char)parser->curtoken.text[0]);
+        match(parser, lexer, TOK_CHAR);
+    } else if(checktoken(parser, TOK_LABEL)) {
+        mode += 2; // XXXDAT
+        parsesymbol(parser, lexer);
+    } else if(checktoken(parser, TOK_REGISTER)) {
+        mode += 0; // XXXREG
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        mode += 1; // XXXPTR
+        parseptr(parser, lexer);
+    }
+
+    relocatebyte(&emitter, loc, mode); // set mode
+}
+
+static void parseloop(struct Parser *parser, struct Lexer *lexer) {
+    uint32_t start = emitter.written;
+    emitbyte(&emitter, 0x2F); // LOOP 
+    if(checktoken(parser, TOK_REGISTER)) {
+        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        emitbyte(&emitter, 0x01); // PTR
+        parseptr(parser, lexer);
+    } else if(checktoken(parser, TOK_NUMBER)) {
+        emitbyte(&emitter, 0x02); // DAT
+        emitbyte32(&emitter, strtol(parser->curtoken.text, NULL, 10));
+        match(parser, lexer, TOK_NUMBER);
+    } else if(checktoken(parser, TOK_CHAR)) {
+        emitbyte(&emitter, 0x02); // DAT
+        emitbyte32(&emitter, (char)parser->curtoken.text[0]);
+        match(parser, lexer, TOK_CHAR);
+    } else if(checktoken(parser, TOK_LABEL)) {
+        emitbyte(&emitter, 0x02); // DAT
+        parsesymbol(parser, lexer);
+    } else if(checktoken(parser, TOK_DOLLAR)) {
+        emitbyte(&emitter, 0x02); // DAT
+        emitbyte32(&emitter, start);
+        match(parser, lexer, TOK_DOLLAR);
+    }
+}
+
 // section
 static int mode = 0; // text (0 text, 1 data)
 
@@ -1138,10 +1365,10 @@ static void parsemacro(struct Parser *parser, struct Lexer *lexer) {
         struct Token constant = parser->curtoken;
         match(parser, lexer, TOK_LABEL);
         if(checktoken(parser, TOK_NUMBER)) {
-            labelmapput(labels, constant.text, strtol(parser->curtoken.text, NULL, 10));
+            labelmapset(labels, constant.text, strtol(parser->curtoken.text, NULL, 10));
             match(parser, lexer, TOK_NUMBER);
         } else if(checktoken(parser, TOK_CHAR)) {
-            labelmapput(labels, constant.text, (char)parser->curtoken.text[0]);
+            labelmapset(labels, constant.text, (char)parser->curtoken.text[0]);
             match(parser, lexer, TOK_CHAR);
         }
     } else if(strcmp(macroname.text, "org") == 0) { // data origin
@@ -1198,7 +1425,7 @@ static void parseperiod(struct Parser *parser, struct Lexer *lexer) {
         mode = 0;
         return;
     } else if(strcmp(operator.text, "data") == 0) { // raw data
-        printf(".data section\n");
+        // printf(".data section\n");
         mode = 1;
         return;
     } else if(strcmp(operator.text, "global") == 0) { // global (ignore for now)
@@ -1242,7 +1469,6 @@ static void parseperiod(struct Parser *parser, struct Lexer *lexer) {
             }
         } else if((strcmp(operator.text, "asciiz") == 0) || (strcmp(operator.text, "string") == 0)) { // NULL terminated string
             struct Token data = parser->curtoken;
-            printf("parsing .asciiz/.string\n");
             match(parser, lexer, TOK_STRING);
             for(size_t i = 0; i < strlen(data.text); i++) {
                 emitbyte(&emitter, data.text[i]);
@@ -1260,10 +1486,10 @@ static void parseperiod(struct Parser *parser, struct Lexer *lexer) {
 }
 
 static void parsestatement(struct Parser *parser, struct Lexer *lexer) {
-    printf("Parsing/Assembling in mode 0x%02x\n", mode);
+    // printf("Parsing/Assembling in mode 0x%02x\n", mode);
     if(mode == 1) { // data
         if(checktoken(parser, TOK_PERIOD)) { // actual operations
-            printf("period operation.\n");
+            // printf("period operation.\n");
             nexttoken(parser, lexer);
             parseperiod(parser, lexer);
         } else if(checktoken(parser, TOK_HASHTAG)) { // MACRO
@@ -1271,8 +1497,8 @@ static void parsestatement(struct Parser *parser, struct Lexer *lexer) {
             parsemacro(parser, lexer);
         } else if(checktoken(parser, TOK_LABEL)) {
             char *label = parser->curtoken.text;
-            printf("Label: '%s', %d\n", label, parser->curtoken.type);
-            labelmapput(labels, label, emitter.written);
+            // printf("Label: '%s', %d\n", label, parser->curtoken.type);
+            labelmapset(labels, label, emitter.written + emitter.offset);
             nexttoken(parser, lexer);
             match(parser, lexer, TOK_COLON);
             if(checktoken(parser, TOK_NEWLINE)) nexttoken(parser, lexer);
@@ -1325,6 +1551,27 @@ static void parsestatement(struct Parser *parser, struct Lexer *lexer) {
     } else if(checktoken(parser, TOK_JGE)) {
         nexttoken(parser, lexer);
         parsejge(parser, lexer);
+    } else if(checktoken(parser, TOK_SETEQ)) {
+        nexttoken(parser, lexer);
+        parseseteq(parser, lexer);
+    } else if(checktoken(parser, TOK_SETNE)) {
+        nexttoken(parser, lexer);
+        parsesetne(parser, lexer);
+    } else if(checktoken(parser, TOK_SETLT)) {
+        nexttoken(parser, lexer);
+        parsesetlt(parser, lexer);
+    } else if(checktoken(parser, TOK_SETGT)) {
+        nexttoken(parser, lexer);
+        parsesetgt(parser, lexer);
+    } else if(checktoken(parser, TOK_SETLE)) {
+        nexttoken(parser, lexer);
+        parsesetle(parser, lexer);
+    } else if(checktoken(parser, TOK_SETGE)) {
+        nexttoken(parser, lexer);
+        parsesetge(parser, lexer);
+    } else if(checktoken(parser, TOK_LEA)) {
+        nexttoken(parser, lexer);
+        parselea(parser, lexer);
     } else if(checktoken(parser, TOK_CMP)) {
         nexttoken(parser, lexer);
         parsecmp(parser, lexer);
@@ -1383,6 +1630,39 @@ static void parsestatement(struct Parser *parser, struct Lexer *lexer) {
     } else if(checktoken(parser, TOK_NOT)) {
         nexttoken(parser, lexer);
         parsenot(parser, lexer);
+    } else if(checktoken(parser, TOK_NEG)) {
+        nexttoken(parser, lexer);
+        parseneg(parser, lexer);
+    } else if(checktoken(parser, TOK_TEST)) {
+        nexttoken(parser, lexer);
+        parsetest(parser, lexer);
+    } else if(checktoken(parser, TOK_CLD)) {
+        nexttoken(parser, lexer);
+        emitbyte(&emitter, 0x2B);
+        emitbyte(&emitter, 0x00);
+    } else if(checktoken(parser, TOK_LODSB)) {
+        nexttoken(parser, lexer);
+        emitbyte(&emitter, 0x2C);
+        emitbyte(&emitter, 0x00);
+    } else if(checktoken(parser, TOK_LODSW)) {
+        nexttoken(parser, lexer);
+        emitbyte(&emitter, 0x2D);
+        emitbyte(&emitter, 0x00);
+    } else if(checktoken(parser, TOK_LODSD)) {
+        nexttoken(parser, lexer);
+        emitbyte(&emitter, 0x2E);
+        emitbyte(&emitter, 0x00);
+    } else if(checktoken(parser, TOK_LOOP)) {
+        nexttoken(parser, lexer);
+        parseloop(parser, lexer);
+    } else if(checktoken(parser, TOK_PUSHA)) {
+        nexttoken(parser, lexer);
+        emitbyte(&emitter, 0x30);
+        emitbyte(&emitter, 0x00);
+    } else if(checktoken(parser, TOK_POPA)) {
+        nexttoken(parser, lexer);
+        emitbyte(&emitter, 0x31);
+        emitbyte(&emitter, 0x00);
     } else if(checktoken(parser, TOK_HASHTAG)) { // MACRO
         nexttoken(parser, lexer);
         parsemacro(parser, lexer);
@@ -1391,8 +1671,8 @@ static void parsestatement(struct Parser *parser, struct Lexer *lexer) {
         parseperiod(parser, lexer);
     } else if(checktoken(parser, TOK_LABEL)) {
         char *label = parser->curtoken.text;
-        printf("Label: '%s', %d\n", label, parser->curtoken.type);
-        labelmapput(labels, label, emitter.written);
+        // printf("Label: '%s', %d\n", label, parser->curtoken.type);
+        labelmapset(labels, label, emitter.written + emitter.offset);
         nexttoken(parser, lexer);
         match(parser, lexer, TOK_COLON);
         if(checktoken(parser, TOK_NEWLINE)) nexttoken(parser, lexer);
@@ -1422,20 +1702,19 @@ void compilefile(char *buffer) {
     }
 }
 
-int compiler(char *buffer, char *output) {
+int compiler(char *buffer, char *output, uint32_t offset) {
 
     job.outputfile = output;
     
     initemitter(&emitter, output);
+    emitter.offset = offset;
+    labels = labelmapcreate();
     
     compilefile(buffer);
-
-    //printf("main labelmap: 0x%08x\n", labelmapget(labels, "main")->value);
-    //emitbyte32(&emitter, 0x000000FF);
     
     for(size_t i = 0; i < relocatablepointer; i++) {
         uint32_t loc = relocatables[i]->loc;
-        struct LabelMapPair *label = labelmapget(labels, relocatables[i]->symbol); // label with relevant symbol/
+        labelmapent_t *label = labelmapget(labels, relocatables[i]->symbol); // label with relevant symbol/
         if(label != NULL) {
             uint32_t labelloc = label->value;
             switch(relocatables[i]->mode) {
@@ -1446,11 +1725,14 @@ int compiler(char *buffer, char *output) {
                     relocatebyte16(&emitter, loc, labelloc);
                     break;
                 case 0x03: // 32 bit
-                    printf("relocating %s to 0x%08x at 0x%08x...\n", relocatables[i]->symbol, label->value, loc);
+                    // printf("relocating %s to 0x%08x at 0x%08x...\n", relocatables[i]->symbol, label->value, loc);
                     relocatebyte32(&emitter, loc, labelloc);
                     break;
             }
         } else {
+            char *err = malloc(32);
+            sprintf(err, "Undefined reference to symbol %s", relocatables[i]->symbol);
+            parserabort(err);
             continue;
         }
     }

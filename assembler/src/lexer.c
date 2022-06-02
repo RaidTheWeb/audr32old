@@ -32,7 +32,35 @@ void inittokenc(struct Token *token, char text, int type) {
         return TOK_REGISTER; \
     }
 
-int checkifkeyword(char *text) {
+int checkifkeyword(char *text, struct Lexer *lexer, int startofline) {
+    if(startofline && peek(lexer) == ':') return TOK_LABEL; // allow definition of labels named the same as instructions
+    DEF_REG(ax) // registers have next level precedence
+    DEF_REG(bx)
+    DEF_REG(cx)
+    DEF_REG(dx)
+    DEF_REG(si)
+    DEF_REG(di)
+    DEF_REG(sp)
+    DEF_REG(bp)
+    DEF_REG(ip)
+    DEF_REG(r0)
+    DEF_REG(r1)
+    DEF_REG(r2)
+    DEF_REG(r3)
+    DEF_REG(r4)
+    DEF_REG(r5)
+    DEF_REG(r6)
+    DEF_REG(r7)
+    DEF_REG(r8)
+    DEF_REG(r9)
+    DEF_REG(r10)
+    DEF_REG(r11)
+    DEF_REG(r12)
+    DEF_REG(r13)
+    DEF_REG(r14)
+    DEF_REG(r15)
+    else if(!startofline) return TOK_LABEL; // allow usage
+
     if(strcmp(text, "noop") == 0) {
         return TOK_NOOP;
     } else if(strcmp(text, "halt") == 0) {
@@ -59,6 +87,20 @@ int checkifkeyword(char *text) {
         return TOK_JG;
     } else if(strcmp(text, "jge") == 0) {
         return TOK_JGE;
+    } else if(strcmp(text, "seteq") == 0) {
+        return TOK_SETEQ;
+    } else if(strcmp(text, "setne") == 0) {
+        return TOK_SETNE;
+    } else if(strcmp(text, "setlt") == 0) {
+        return TOK_SETLT;
+    } else if(strcmp(text, "setgt") == 0) {
+        return TOK_SETGT;
+    } else if(strcmp(text, "setle") == 0) {
+        return TOK_SETLE;
+    } else if(strcmp(text, "setge") == 0) {
+        return TOK_SETGE;
+    } else if(strcmp(text, "lea") == 0) {
+        return TOK_LEA;
     } else if(strcmp(text, "call") == 0) {
         return TOK_CALL;
     } else if(strcmp(text, "ret") == 0) {
@@ -105,28 +147,30 @@ int checkifkeyword(char *text) {
         return TOK_OR;
     } else if(strcmp(text, "not") == 0) {
         return TOK_NOT;
+    } else if(strcmp(text, "neg") == 0) {
+        return TOK_NEG;
+    } else if(strcmp(text, "test") == 0) {
+        return TOK_TEST;
+    } else if(strcmp(text, "cld") == 0) {
+        return TOK_CLD;
+    } else if(strcmp(text, "lodsb") == 0) {
+        return TOK_LODSB;
+    } else if(strcmp(text, "lodsw") == 0) {
+        return TOK_LODSW;
+    } else if(strcmp(text, "lodsd") == 0) {
+        return TOK_LODSD;
+    } else if(strcmp(text, "loop") == 0) {
+        return TOK_LOOP;
+    } else if(strcmp(text, "pusha") == 0) {
+        return TOK_PUSHA;
+    } else if(strcmp(text, "popa") == 0) {
+        return TOK_POPA;
     }
-    DEF_REG(ax)
-    DEF_REG(bx)
-    DEF_REG(cx)
-    DEF_REG(dx)
-    DEF_REG(si)
-    DEF_REG(di)
-    DEF_REG(sp)
-    DEF_REG(bp)
-    DEF_REG(ip)
-    DEF_REG(r8)
-    DEF_REG(r9)
-    DEF_REG(r10)
-    DEF_REG(r11)
-    DEF_REG(r12)
-    DEF_REG(r13)
-    DEF_REG(r14)
-    DEF_REG(r15)
+    
     return TOK_LABEL;
 }
 
-void nextchar(struct Lexer *);
+void nextchar(struct Lexer *, int);
 
 void initlexer(struct Lexer *lexer, char *source) {
     lexer->source = (char *)malloc(strlen(source) + 1);
@@ -137,14 +181,18 @@ void initlexer(struct Lexer *lexer, char *source) {
     lexer->line = 1;
     lexer->charpos = 0;
 
-    nextchar(lexer);
+    nextchar(lexer, 0);
 }
 
-void nextchar(struct Lexer *lexer) {
+void nextchar(struct Lexer *lexer, int whitespace) {
     lexer->pos++;
-    lexer->charpos++; // increment line character
+    if(!whitespace) lexer->charpos++;// increment line character
     if(lexer->pos >= strlen(lexer->source)) lexer->current = '\0';
-    else lexer->current = lexer->source[lexer->pos];
+    else lexer->current = lexer->source[lexer->pos]; 
+    if(lexer->current == '\n') {
+        lexer->line++;
+        lexer->charpos = 0;
+    }
 }
 
 char peek(struct Lexer *lexer) {
@@ -153,20 +201,21 @@ char peek(struct Lexer *lexer) {
 }
 
 void skipwhitespace(struct Lexer *lexer) {
-    while(lexer->current == ' ' || lexer->current == '\t' || lexer->current == '\r')
-        nextchar(lexer);
+    while(lexer->current == ' ' || lexer->current == '\t' || lexer->current == '\r' || lexer->current == '\f' || ((lexer->current > 0 && lexer->current < 9) || (lexer->current > 14 && lexer->current < 32))) { // || lexer->current < 0x20) { 
+//        if(lexer->current == '\n' && lexer->current == '\0') break; // catch newlines and EOF
+        nextchar(lexer, 1);
+    }
 }
 
 void skipcomment(struct Lexer *lexer) {
     if(lexer->current == ';') {
-        while(lexer->current != '\n') nextchar(lexer);
-        lexer->line++; // increment line because newline
-        lexer->charpos = 0; // reset character position
+        while(lexer->current != '\n') nextchar(lexer, 1);
+        
     }
 }
 
 void lexerabort(struct Lexer *lexer, char *message) {
-    printf("Assembler lexer error: %s (Line %lu, Character %lu)\n", message, lexer->line, lexer->charpos);
+    printf("Assembler lexer error: %s (Line %lu, Character %lu (0x%02x))\n", message, lexer->line, lexer->charpos, lexer->current);
     exit(1);
 }
 
@@ -179,13 +228,13 @@ struct Token gettoken(struct Lexer *lexer) {
         inittokenc(&token, lexer->current, TOK_PLUS);
     else if(lexer->current == '-') {
         if (isdigit(peek(lexer))) {
-            nextchar(lexer);
+            nextchar(lexer, 0);
             if(peek(lexer) == 'x') {
-                nextchar(lexer);
-                nextchar(lexer);
+                nextchar(lexer, 0);
+                nextchar(lexer, 0);
                 int startpos = lexer->pos;
                 while(isxdigit(peek(lexer)))
-                    nextchar(lexer);
+                    nextchar(lexer, 0);
 
                 int32_t num = -strtol(substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), NULL, 16);
                 char buffer[256];
@@ -194,11 +243,11 @@ struct Token gettoken(struct Lexer *lexer) {
 
                 inittoken(&token, buffer, TOK_NUMBER);
             } else if(peek(lexer) == 'b') {
-                nextchar(lexer);
-                nextchar(lexer);
+                nextchar(lexer, 0);
+                nextchar(lexer, 0);
                 int startpos = lexer->pos;
                 while(isdigit(peek(lexer)))
-                    nextchar(lexer);
+                    nextchar(lexer, 0);
 
                 int32_t num = -strtol(substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), NULL, 2);
                 char buffer[256];
@@ -207,11 +256,11 @@ struct Token gettoken(struct Lexer *lexer) {
 
                 inittoken(&token, buffer, TOK_NUMBER);
             } else if(peek(lexer) == 'o') {
-                nextchar(lexer);
-                nextchar(lexer);
+                nextchar(lexer, 0);
+                nextchar(lexer, 0);
                 int startpos = lexer->pos;
                 while(isdigit(peek(lexer)))
-                    nextchar(lexer);
+                    nextchar(lexer, 0);
 
                 int32_t num = -strtol(substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), NULL, 8);
                 char buffer[256];
@@ -223,7 +272,7 @@ struct Token gettoken(struct Lexer *lexer) {
                 int startpos = lexer->pos - 1;
 
                 while(isdigit(peek(lexer)))
-                    nextchar(lexer);
+                    nextchar(lexer, 0);
 
                 inittoken(&token, substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), TOK_NUMBER);
             }
@@ -258,7 +307,7 @@ struct Token gettoken(struct Lexer *lexer) {
     else if(lexer->current == '$')
         inittokenc(&token, lexer->current, TOK_DOLLAR); // basically the only thing we'll use it for
     else if(lexer->current == '\"') {
-        nextchar(lexer);
+        nextchar(lexer, 0);
         int startpos = lexer->pos;
         int marked = 0;
 
@@ -268,11 +317,11 @@ struct Token gettoken(struct Lexer *lexer) {
                 lexerabort(lexer, "Illegal character in string");
             if(lexer->current == '\\')
                 marked = 1;
-            nextchar(lexer);
+            nextchar(lexer, 0);
         }
         inittoken(&token, substring(lexer->source, startpos + 1, lexer->pos - startpos), TOK_STRING);
     } else if(lexer->current == '\'') {
-        nextchar(lexer);
+        nextchar(lexer, 0);
         int startpos = lexer->pos;
         int allowed = 1;
         int marked = 0;
@@ -287,7 +336,7 @@ struct Token gettoken(struct Lexer *lexer) {
                 marked = 1;
                 allowed = 2;
             }
-            nextchar(lexer);
+            nextchar(lexer, 0);
         }
 
         if(lexer->pos - startpos > allowed)
@@ -296,11 +345,11 @@ struct Token gettoken(struct Lexer *lexer) {
     } else if(isdigit(lexer->current)) {
         if(peek(lexer) == 'x') {
 
-            nextchar(lexer);
-            nextchar(lexer);
+            nextchar(lexer, 0);
+            nextchar(lexer, 0);
             int startpos = lexer->pos;
             while(isxdigit(peek(lexer)))
-                nextchar(lexer);
+                nextchar(lexer, 0);
 
             uint32_t num = strtol(substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), NULL, 16);
             char buffer[256];
@@ -309,11 +358,11 @@ struct Token gettoken(struct Lexer *lexer) {
 
             inittoken(&token, buffer, TOK_NUMBER);
         } else if(peek(lexer) == 'b') {
-            nextchar(lexer);
-            nextchar(lexer);
+            nextchar(lexer, 0);
+            nextchar(lexer, 0);
             int startpos = lexer->pos;
             while(isdigit(peek(lexer)))
-                nextchar(lexer);
+                nextchar(lexer, 0);
 
             uint32_t num = strtol(substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), NULL, 2);
             char buffer[256];
@@ -322,11 +371,11 @@ struct Token gettoken(struct Lexer *lexer) {
 
             inittoken(&token, buffer, TOK_NUMBER);
         } else if(peek(lexer) == 'o') {
-            nextchar(lexer);
-            nextchar(lexer);
+            nextchar(lexer, 0);
+            nextchar(lexer, 0);
             int startpos = lexer->pos;
             while(isdigit(peek(lexer)))
-                nextchar(lexer);
+                nextchar(lexer, 0);
 
             uint32_t num = strtol(substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), NULL, 8);
             char buffer[256];
@@ -338,30 +387,31 @@ struct Token gettoken(struct Lexer *lexer) {
             int startpos = lexer->pos;
 
             while(isdigit(peek(lexer)))
-                nextchar(lexer);
+                nextchar(lexer, 0);
             
             inittoken(&token, substring(lexer->source, startpos + 1, lexer->pos - (startpos - 1)), TOK_NUMBER);
         }
     } else if(isalpha(lexer->current)) {
         int startpos = lexer->pos;
+        int startofline = 0;
+        if(lexer->charpos == 1) startofline = 1; // so we know if we start at the beginning or not
         while(isalnum(peek(lexer)) || peek(lexer) == '_')
-            nextchar(lexer);
+            nextchar(lexer, 0);
 
         char *text = substring(lexer->source, startpos + 1, (lexer->pos) - (startpos - 1));
 
-        int type = checkifkeyword(text);
+        int type = checkifkeyword(text, lexer, startofline);
         inittoken(&token, text, type);
     } else if(lexer->current == '\n') {
-        inittokenc(&token, lexer->current, TOK_NEWLINE);
-        lexer->line++;
-        lexer->charpos = 0;
-    } else if(lexer->current == '\0')
+        inittokenc(&token, lexer->current, TOK_NEWLINE); 
+    } else if(lexer->current == '\0') {
         inittokenc(&token, '\0', TOK_EOF);
-    else {
-        printf("%c\n", lexer->current);
+    } else if((lexer->current > 0 && lexer->current < 9) || (lexer->current > 14 && lexer->current < 32)) {
+        printf("excluded character\n");
+    } else {
         lexerabort(lexer, "Unknown Token");
     }
     
-    nextchar(lexer);
+    nextchar(lexer, 0);
     return token;
 }

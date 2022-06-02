@@ -41,6 +41,8 @@ void interrupt_trigger(uint16_t src, uint16_t num) {
     interrupt_t inter = { .busid = src, .num = num };
     handleint(inter);
     interruptbuffer[interruptpointer++] = inter;
+    interruptpointer %= MAX_INTERRUPTS;
+//    printf("interruptpointer: %d\n", interruptpointer);
 }
 
 static interrupt_t nullinterrupt = { .busid = 0, .num = 0 }; // NULL interrupt
@@ -58,9 +60,15 @@ void handleint(interrupt_t interrupt) {
         iotable.ioentries[interrupt.num].handle();
     }
     if(idtable.intent[interrupt.num].set) {
-        *vm.stacktop = vm.regs[REG_IP];
-        vm.stacktop++;
-        vm.regs[REG_SP]++;
+
+        //*vm.stacktop = vm.regs[REG_IP];
+        //vm.stacktop++;
+        vm.regs[REG_SP] -= 4; 
+        ptr_t pointer = {
+            .addr = vm.regs[REG_SP],
+            .ptrmode = 0x03
+        };
+        SET_PTR(pointer, vm.regs[REG_IP]); 
         vm.regs[REG_IP] = idtable.intent[interrupt.num].addr;
     }
 }
@@ -77,15 +85,40 @@ void wait_until_triggered(uint16_t busid, uint16_t num) {
             if(dev->id == 0 || !dev->tick) continue;
             dev->tick(dev);
         }
-        vm.tsc++;
     }
 }
 
-static uint32_t interrupt_poll(device_t *dev) {
+static uint32_t read_porta(uint16_t port) {
     return interruptpending;
 }
 
-static void interrupt_pull(device_t *dev, uint32_t data) {
+static void write_porta(uint16_t port, uint32_t data) {
+    wait_until_triggered(0x0000, data);
+}
+
+static uint32_t read_portb(uint16_t port) {
+    return 0;
+}
+
+static void write_portb(uint16_t port, uint32_t data) {
+    uint8_t entries = *(uint8_t *)&vm.memory[data++];
+    for(size_t i = 0; i < entries; i += 5) {
+        uint8_t num = *(uint8_t *)&vm.memory[data + i];
+        ptr_t addrptr = {
+            .addr = data + i + 1,
+            .ptrmode = 0x03
+        };
+        uint32_t addr = GET_PTR(addrptr); 
+        idtent_t idtentry = {
+            .set = 1,
+            .addr = addr
+        };
+        idtable.intent[num] = idtentry;
+    }
+
+}
+
+static void interrupt_pull(uint16_t port, uint32_t data) {
     if(currentmode == 0) {
         uint16_t mode = (data & 0xFFFF0000) >> 16;
         uint16_t number = data & 0x0000FFFF; 
@@ -165,6 +198,7 @@ void doint(opcodepre_t prefix) {
     switch(prefix.mode) {
         case INT_DAT: {
             uint32_t num = READ_BYTE32();
+//            printf("int 0x%08x\n", num);
             interrupt_trigger(0x0002, num); // SRC: Interrupt Controller
            // printf("triggered interrupt via instruction dat!\n");
             break;
@@ -192,12 +226,10 @@ static void interrupt_tick(device_t *dev) {
     //printf("ticking interrupt controller!\n");
 }
 
-void interrupt_init() {
+void interrupt_init(void) {
     struct Device devcopy = {
         .id = io_request_id(),
         .set = 1,
-        .poll = interrupt_poll,
-        .pull = interrupt_pull,
         .tick = interrupt_tick,
         .destroy = NULL
     };
@@ -209,4 +241,14 @@ void interrupt_init() {
     };
     iotable.ioentries[0x00014] = entry;
     vm.devices[0x0002] = devcopy;
+
+    /** Wait For Interrupt Trigger */
+    vm.ports[0x3A].set = 1;
+    vm.ports[0x3A].read = read_porta;
+    vm.ports[0x3A].write = write_porta;
+
+    /** Set Interrupt Descriptor Table */
+    vm.ports[0x3B].set = 1;
+    vm.ports[0x3B].read = read_portb;
+    vm.ports[0x3B].write = write_portb;
 }

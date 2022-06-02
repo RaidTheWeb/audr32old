@@ -8,6 +8,8 @@ struct Emitter {
     uint8_t *code;
     uint32_t cp;
     uint32_t written;
+    uint32_t capacity;
+    uint32_t offset;
 };
 
 void initemitter(struct Emitter *emitter, char *fullPath);

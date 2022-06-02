@@ -21,6 +21,7 @@ void domov(opcodepre_t prefix) {
             registeruni_t reguni;
             reguni.u32 = READ_BYTE32();
             SET_REGISTER(reg, reguni);
+            if(reg == REG_SP) vm.curstack = GET_REGISTER32(reg);
             break;
         }
         case MOV_REGREG: {
@@ -29,6 +30,7 @@ void domov(opcodepre_t prefix) {
             registeruni_t reguni;
             reguni.u32 = GET_REGISTER32(src);
             SET_REGISTER(dest, reguni);
+            if(dest == REG_SP) vm.curstack = GET_REGISTER32(dest);
             break;
         }
         case MOV_REGPTR: {
@@ -36,7 +38,8 @@ void domov(opcodepre_t prefix) {
             ptr_t pointer = READ_PTR();
             registeruni_t reguni;
             reguni.u32 = GET_PTR(pointer);
-            SET_REGISTER(reg, reguni); 
+            SET_REGISTER(reg, reguni);
+            if(reg == REG_SP) vm.curstack = GET_REGISTER32(reg);
             break;
         }
         case MOV_PTRREG: {
@@ -218,7 +221,7 @@ void dojnz(opcodepre_t prefix) {
         case JNZ_REG: {
             uint32_t location = GET_REGISTER32(READ_BYTE());
 
-            if(!vm.flags[FLAG_ZF]) {
+            if(!GET_FLAG(FLAG_ZF)) {
                 vm.regs[REG_IP] = location;
             }
             break;
@@ -226,14 +229,14 @@ void dojnz(opcodepre_t prefix) {
         case JNZ_PTR: {
             uint32_t location = GET_PTR(READ_PTR());
 
-            if(!vm.flags[FLAG_ZF])
+            if(!GET_FLAG(FLAG_ZF))
                 vm.regs[REG_IP] = location;
             break;
         }
         case JNZ_DAT: {
             uint32_t location = READ_BYTE32();
 
-            if(!vm.flags[FLAG_ZF]) { 
+            if(!GET_FLAG(FLAG_ZF)) { 
                 vm.regs[REG_IP] = location;
             }
             break;
@@ -334,21 +337,21 @@ void dojz(opcodepre_t prefix) {
         case JZ_REG: {
             uint32_t location = GET_REGISTER32(READ_BYTE());
 
-            if(vm.flags[FLAG_ZF])
+            if(GET_FLAG(FLAG_ZF))
                 vm.regs[REG_IP] = location;
             break;
         }
         case JZ_PTR: {
             uint32_t location = GET_PTR(READ_PTR());
 
-            if(vm.flags[FLAG_ZF])
+            if(GET_FLAG(FLAG_ZF))
                 vm.regs[REG_IP] = location;
             break;
         }
         case JZ_DAT: {
             uint32_t location = READ_BYTE32();
 
-            if(vm.flags[FLAG_ZF])
+            if(GET_FLAG(FLAG_ZF))
                 vm.regs[REG_IP] = location;
             break;
         }
@@ -369,21 +372,21 @@ void dojg(opcodepre_t prefix) {
         case JG_REG: {
             uint32_t location = GET_REGISTER32(READ_BYTE());
 
-            if(!vm.flags[FLAG_ZF] && !vm.flags[FLAG_CF])
+            if((!GET_FLAG(FLAG_ZF)) && GET_FLAG(FLAG_CF))
                 vm.regs[REG_IP] = location;
             break;
         }
         case JG_PTR: {
             uint32_t location = GET_PTR(READ_PTR());
 
-            if(!vm.flags[FLAG_ZF] && !vm.flags[FLAG_CF])
+            if((!GET_FLAG(FLAG_ZF)) && GET_FLAG(FLAG_CF))
                 vm.regs[REG_IP] = location;
             break;
         }
         case JG_DAT: {
             uint32_t location = READ_BYTE32();
-
-            if(!vm.flags[FLAG_ZF] && !vm.flags[FLAG_CF])
+            
+            if((!GET_FLAG(FLAG_ZF)) && GET_FLAG(FLAG_CF))
                 vm.regs[REG_IP] = location;
             break;
         }
@@ -404,21 +407,26 @@ void dojge(opcodepre_t prefix) {
         case JGE_REG: {
             uint32_t location = GET_REGISTER32(READ_BYTE());
 
-            if((!vm.flags[FLAG_ZF] && !vm.flags[FLAG_CF]) || vm.flags[FLAG_ZF])
+            if(GET_FLAG(FLAG_CF))
+                vm.regs[REG_IP] = location;
+            else if(GET_FLAG(FLAG_ZF))
                 vm.regs[REG_IP] = location;
             break;
         }
         case JGE_PTR: {
             uint32_t location = GET_PTR(READ_PTR());
 
-            if((!vm.flags[FLAG_ZF] && !vm.flags[FLAG_CF]) || vm.flags[FLAG_ZF]) 
+            if(GET_FLAG(FLAG_CF))
+                vm.regs[REG_IP] = location;
+            else if(GET_FLAG(FLAG_ZF))
                 vm.regs[REG_IP] = location;
             break;
         }
         case JGE_DAT: {
-            uint32_t location = READ_BYTE32();
-
-            if((!vm.flags[FLAG_ZF] && !vm.flags[FLAG_CF]) || vm.flags[FLAG_ZF])
+            uint32_t location = READ_BYTE32(); 
+            if(GET_FLAG(FLAG_CF))
+                vm.regs[REG_IP] = location;
+            else if(GET_FLAG(FLAG_ZF))
                 vm.regs[REG_IP] = location;
             break;
         }
@@ -438,22 +446,24 @@ void dojl(opcodepre_t prefix) {
     switch(prefix.mode) {
         case JL_REG: {
             uint32_t location = GET_REGISTER32(READ_BYTE());
-
-            if(!vm.flags[FLAG_ZF] && vm.flags[FLAG_CF])
+            
+            
+            if((!GET_FLAG(FLAG_ZF)) && (!GET_FLAG(FLAG_CF)))
                 vm.regs[REG_IP] = location;
             break;
         }
         case JL_PTR: {
             uint32_t location = GET_PTR(READ_PTR());
 
-            if(!vm.flags[FLAG_ZF] && vm.flags[FLAG_CF])
+            if((!GET_FLAG(FLAG_ZF)) && (!GET_FLAG(FLAG_CF)))
                 vm.regs[REG_IP] = location;
             break;
         }
         case JL_DAT: {
             uint32_t location = READ_BYTE32();
 
-            if(!vm.flags[FLAG_ZF] && vm.flags[FLAG_CF])
+            
+            if((!GET_FLAG(FLAG_ZF)) && (!GET_FLAG(FLAG_CF)))
                 vm.regs[REG_IP] = location;
             break;
         }
@@ -474,21 +484,25 @@ void dojle(opcodepre_t prefix) {
         case JLE_REG: {
             uint32_t location = GET_REGISTER32(READ_BYTE());
 
-            if((!vm.flags[FLAG_ZF] && vm.flags[FLAG_CF]) || vm.flags[FLAG_ZF])
+            printf("zf=%u, cf=%u\n", GET_FLAG(FLAG_ZF), GET_FLAG(FLAG_CF));
+            
+            if((!GET_FLAG(FLAG_CF)) || GET_FLAG(FLAG_ZF))
                 vm.regs[REG_IP] = location;
             break;
         }
         case JLE_PTR: {
             uint32_t location = GET_PTR(READ_PTR());
-
-            if((!vm.flags[FLAG_ZF] && vm.flags[FLAG_CF]) || vm.flags[FLAG_ZF]) 
+            printf("zf=%u, cf=%u\n", GET_FLAG(FLAG_ZF), GET_FLAG(FLAG_CF));
+            
+            if((!GET_FLAG(FLAG_CF)) || GET_FLAG(FLAG_ZF)) 
                 vm.regs[REG_IP] = location;
             break;
         }
         case JLE_DAT: {
             uint32_t location = READ_BYTE32();
-
-            if((!vm.flags[FLAG_ZF] && !vm.flags[FLAG_CF]) || vm.flags[FLAG_ZF])
+            printf("zf=%u, cf=%u\n", GET_FLAG(FLAG_ZF), GET_FLAG(FLAG_CF));
+            
+            if((!GET_FLAG(FLAG_CF)) || GET_FLAG(FLAG_ZF))
                 vm.regs[REG_IP] = location;
             break;
         }
@@ -496,5 +510,70 @@ void dojle(opcodepre_t prefix) {
             printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
             exit(1);
             return;
+    }
+}
+
+#define LEA_REGPTR 0x00
+#define LEA_PTRPTR 0x01
+
+void dolea(opcodepre_t prefix) {
+    switch(prefix.mode) {
+        case LEA_REGPTR: {
+            uint8_t dest = READ_BYTE();
+            ptr_t src = READ_PTR();
+
+            vm.regs[dest] = src.addr;
+            break;
+        }
+        case LEA_PTRPTR: {
+            ptr_t dest = READ_PTR();
+            ptr_t src = READ_PTR();
+            
+            SET_PTR(dest, src.addr);
+            break;
+        } 
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+}
+
+#define LOOP_REG 0x00
+#define LOOP_PTR 0x01
+#define LOOP_DAT 0x02
+
+void doloop(opcodepre_t prefix) {
+    uint32_t destination;
+    switch(prefix.mode) {
+        case LOOP_REG: {
+            uint8_t reg = READ_BYTE();
+            destination = vm.regs[reg];
+            break;
+        }
+        case LOOP_PTR: {
+            uint32_t location = GET_PTR(READ_PTR());
+            destination = location;
+            break;
+        }
+        case LOOP_DAT: {
+            uint32_t loc = READ_BYTE32();
+            destination = loc;
+            break;
+        }
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+
+    int count = vm.regs[REG_CX] - 1;
+    int branchcond = 0;
+
+    if(count != 0) branchcond = 1;
+    else branchcond = 0;
+
+    if(branchcond == 1) {
+        vm.regs[REG_IP] = destination;
     }
 }

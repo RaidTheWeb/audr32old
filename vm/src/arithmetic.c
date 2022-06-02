@@ -19,6 +19,8 @@ void doadd(opcodepre_t prefix) {
             uint8_t second = READ_BYTE();
 
             vm.regs[first] += vm.regs[second];
+
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case ADD_REGPTR: {
@@ -26,6 +28,8 @@ void doadd(opcodepre_t prefix) {
             uint32_t second = GET_PTR(READ_PTR());
 
             vm.regs[first] += second;
+
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case ADD_REGDAT: {
@@ -33,6 +37,8 @@ void doadd(opcodepre_t prefix) {
             uint32_t second = READ_BYTE32();
 
             vm.regs[first] += second;
+
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case ADD_PTRPTR: {
@@ -77,6 +83,8 @@ void dosub(opcodepre_t prefix) {
             uint8_t second = READ_BYTE();
 
             vm.regs[first] -= vm.regs[second];
+
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case SUB_REGPTR: {
@@ -84,6 +92,8 @@ void dosub(opcodepre_t prefix) {
             uint32_t second = GET_PTR(READ_PTR());
 
             vm.regs[first] -= second;
+
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case SUB_REGDAT: {
@@ -91,6 +101,7 @@ void dosub(opcodepre_t prefix) {
             uint32_t second = READ_BYTE32();
 
             vm.regs[first] -= second;
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case SUB_PTRPTR: {
@@ -136,13 +147,17 @@ void dodiv(opcodepre_t prefix) {
             uint8_t second = READ_BYTE();
 
             vm.regs[first] = vm.regs[first] / vm.regs[second];
+            vm.regs[REG_AX] = vm.regs[first] % vm.regs[second]; // tramples AX
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case DIV_REGPTR: {
             uint8_t first = READ_BYTE();
             uint32_t second = GET_PTR(READ_PTR());
 
-            vm.regs[first] = vm.regs[first] / second;;
+            vm.regs[first] = vm.regs[first] / second;
+            vm.regs[REG_AX] = vm.regs[first] % vm.regs[second]; // tramples AX
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case DIV_REGDAT: {
@@ -150,24 +165,29 @@ void dodiv(opcodepre_t prefix) {
             uint32_t second = READ_BYTE32();
 
             vm.regs[first] = vm.regs[first] / second;
+            vm.regs[REG_AX] = vm.regs[first] % second; // tramples AX
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case DIV_PTRPTR: {
             ptr_t first = READ_PTR();
-            uint32_t second = GET_PTR(READ_PTR()); 
+            uint32_t second = GET_PTR(READ_PTR());
+            vm.regs[REG_AX] = GET_PTR(first) % second; // tramples AX
             SET_PTR(first, GET_PTR(first) / second);
             break;
         }
         case DIV_PTRREG: {
             ptr_t first = READ_PTR();
             uint8_t second = READ_BYTE();
+            vm.regs[REG_AX] = GET_PTR(first) % vm.regs[second]; // tramples AX
             SET_PTR(first, GET_PTR(first) / GET_REGISTER32(second));
             break;
         }
         case DIV_PTRDAT: {
             ptr_t first = READ_PTR();
             uint32_t second = READ_BYTE32();
-
+            
+            vm.regs[REG_AX] = GET_PTR(first) % second; // tramples AX
             SET_PTR(first, GET_PTR(first) / second);
             break;
         }
@@ -193,13 +213,17 @@ void domul(opcodepre_t prefix) {
             uint8_t second = READ_BYTE();
 
             vm.regs[first] = vm.regs[first] * vm.regs[second];
+
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case MUL_REGPTR: {
             uint8_t first = READ_BYTE();
             uint32_t second = GET_PTR(READ_PTR());
 
-            vm.regs[first] = vm.regs[first] * second;;
+            vm.regs[first] = vm.regs[first] * second;
+
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case MUL_REGDAT: {
@@ -207,6 +231,8 @@ void domul(opcodepre_t prefix) {
             uint32_t second = READ_BYTE32();
 
             vm.regs[first] = vm.regs[first] * second;
+
+            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case MUL_PTRPTR: {
@@ -244,6 +270,8 @@ void doinc(opcodepre_t prefix) {
         case INC_REG: {
             uint8_t reg = READ_BYTE();
             vm.regs[reg]++;
+
+            if(reg == REG_SP) vm.curstack = GET_REGISTER32(reg);
             break;
         }
         case INC_PTR: {
@@ -267,6 +295,8 @@ void dodec(opcodepre_t prefix) {
             uint8_t reg = READ_BYTE();
             if(vm.regs[reg] > 0)
                 vm.regs[reg]--;
+
+            if(reg == REG_SP) vm.curstack = GET_REGISTER32(reg);
             break;
         }
         case DEC_PTR: {
@@ -445,8 +475,12 @@ void docmp(opcodepre_t prefix) {
     uint32_t value2;
     switch(prefix.mode) {
         case CMP_REGREG: {
-            value1 = GET_REGISTER32(READ_BYTE());
-            value2 = GET_REGISTER32(READ_BYTE());
+            uint8_t reg1 = READ_BYTE();
+            uint8_t reg2 = READ_BYTE();
+//            printf("cmp 0x%02x, 0x%02x\n", reg1, reg2);
+            value1 = GET_REGISTER32(reg1);
+            value2 = GET_REGISTER32(reg2);
+//            printf("cmp 0x%08x, 0x%08x\n", value1, value2);
             break;
         }
         case CMP_REGPTR: {
@@ -489,6 +523,7 @@ void docmp(opcodepre_t prefix) {
         case CMP_DATDAT: {
             value1 = READ_BYTE32();
             value2 = READ_BYTE32();
+            printf("cmp %u, %u\n", value1, value2);
 
 //            if(check != 0)
 //                vm.regs[REG_IP] = location;
@@ -517,17 +552,150 @@ void docmp(opcodepre_t prefix) {
     }
     
     if(value1 == value2) {
-        vm.flags[FLAG_ZF] = 1;
-        vm.flags[FLAG_CF] = 0;
+        SET_FLAG(FLAG_ZF, 1);
     } else if(value1 > value2) {
-        vm.flags[FLAG_ZF] = 0;
-        vm.flags[FLAG_CF] = 0;
+        SET_FLAG(FLAG_ZF, 0);
+        SET_FLAG(FLAG_CF, 1);
     } else if(value1 < value2) {
-        vm.flags[FLAG_ZF] = 0;
-        vm.flags[FLAG_CF] = 1;
+        SET_FLAG(FLAG_ZF, 0);
+        SET_FLAG(FLAG_CF, 0);
+    } else {
+        printf("values (0x%08x, 0x%08x) meet no conditions! unexpected behaviour.\n", value1, value2);
+        exit(1);
     }
 }
 
+#define SETEQ_REG 0x00
+#define SETEQ_PTR 0x01
+
+void doseteq(opcodepre_t prefix) {
+    switch(prefix.mode) {
+        case SETEQ_REG: {
+            uint8_t reg = READ_BYTE();
+            vm.regs[reg] = GET_FLAG(FLAG_ZF);
+            break;
+        }
+        case SETEQ_PTR: {
+            ptr_t pointer = READ_PTR();
+            SET_PTR(pointer, GET_FLAG(FLAG_ZF));
+            break;
+        }
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+}
+
+#define SETNE_REG 0x00
+#define SETNE_PTR 0x01
+
+void dosetne(opcodepre_t prefix) {
+    switch(prefix.mode) {
+        case SETNE_REG: {
+            uint8_t reg = READ_BYTE();
+            vm.regs[reg] = !GET_FLAG(FLAG_ZF);
+            break;
+        }
+        case SETNE_PTR: {
+            ptr_t pointer = READ_PTR();
+            SET_PTR(pointer, !GET_FLAG(FLAG_ZF));
+            break;
+        }
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+}
+
+#define SETLT_REG 0x00
+#define SETLT_PTR 0x01
+
+void dosetlt(opcodepre_t prefix) {
+    switch(prefix.mode) {
+        case SETLT_REG: {
+            uint8_t reg = READ_BYTE();
+            vm.regs[reg] = (!GET_FLAG(FLAG_ZF)) && (!GET_FLAG(FLAG_CF));
+            break;
+        }
+        case SETLT_PTR: {
+            ptr_t pointer = READ_PTR();
+            SET_PTR(pointer, (!GET_FLAG(FLAG_ZF)) && (!GET_FLAG(FLAG_CF))); 
+            break;
+        }
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+}
+
+#define SETGT_REG 0x00
+#define SETGT_PTR 0x01
+
+void dosetgt(opcodepre_t prefix) {
+    switch(prefix.mode) {
+        case SETGT_REG: {
+            uint8_t reg = READ_BYTE();
+            vm.regs[reg] = (!GET_FLAG(FLAG_ZF)) && (GET_FLAG(FLAG_CF));
+            break;
+        }
+        case SETGT_PTR: {
+            ptr_t pointer = READ_PTR();
+            SET_PTR(pointer, (!GET_FLAG(FLAG_ZF)) && (GET_FLAG(FLAG_CF))); 
+            break;
+        }
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+}
+
+#define SETLE_REG 0x00
+#define SETLE_PTR 0x01
+
+void dosetle(opcodepre_t prefix) {
+    switch(prefix.mode) {
+        case SETLE_REG: {
+            uint8_t reg = READ_BYTE();
+            vm.regs[reg] = (!GET_FLAG(FLAG_CF)) || GET_FLAG(FLAG_ZF);
+            break;
+        }
+        case SETLE_PTR: {
+            ptr_t pointer = READ_PTR();
+            SET_PTR(pointer, (!GET_FLAG(FLAG_CF)) || GET_FLAG(FLAG_ZF));
+            break;
+        }
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+}
+
+#define SETGE_REG 0x00
+#define SETGE_PTR 0x01
+
+void dosetge(opcodepre_t prefix) {
+    switch(prefix.mode) {
+        case SETGE_REG: {
+            uint8_t reg = READ_BYTE();
+            vm.regs[reg] = (GET_FLAG(FLAG_CF)) || GET_FLAG(FLAG_ZF);
+            break;
+        }
+        case SETGE_PTR: {
+            ptr_t pointer = READ_PTR();
+            SET_PTR(pointer, (GET_FLAG(FLAG_CF)) || GET_FLAG(FLAG_ZF)); 
+            break;
+        }
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+}
 
 //        DEST - SRC
 #define AND_REGREG 0x00
@@ -543,7 +711,7 @@ void doand(opcodepre_t prefix) {
             uint8_t first = READ_BYTE();
             uint8_t second = READ_BYTE();
 
-        vm.regs[first] &= vm.regs[second];
+            vm.regs[first] &= vm.regs[second];
             break;
         }
         case AND_REGPTR: {
@@ -838,6 +1006,152 @@ void donot(opcodepre_t prefix) {
             ptr_t pointer = READ_PTR();
             
             SET_PTR(pointer, ~GET_PTR(pointer));
+            break;
+        }
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+}
+
+#define NEG_REG 0x00
+#define NEG_PTR 0x01
+
+void doneg(opcodepre_t prefix) {
+    switch(prefix.mode) {
+        case NEG_REG: {
+            uint8_t reg = READ_BYTE();
+            vm.regs[reg] = -vm.regs[reg];
+            break;
+        }
+        case NEG_PTR: {
+            ptr_t pointer = READ_PTR();
+            SET_PTR(pointer, -GET_PTR(pointer));
+            break;
+        }
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+}
+
+//        DEST - SRC
+#define TEST_REGREG 0x00
+#define TEST_REGPTR 0x01
+#define TEST_REGDAT 0x02
+#define TEST_PTRPTR 0x03
+#define TEST_PTRREG 0x04
+#define TEST_PTRDAT 0x05
+
+void dotest(opcodepre_t prefix) {
+    switch(prefix.mode) {
+        case TEST_REGREG: {
+            uint8_t first = READ_BYTE();
+            uint8_t second = READ_BYTE();
+            uint32_t temp = vm.regs[first] & vm.regs[second]; 
+
+            if(temp == 0) {
+                SET_FLAG(FLAG_ZF, 1);
+            } else if(temp < 0) {
+                SET_FLAG(FLAG_SF, 1);
+                SET_FLAG(FLAG_ZF, 0);
+            } else if(temp > 0) {
+                SET_FLAG(FLAG_SF, 0);
+                SET_FLAG(FLAG_ZF, 0);
+            }
+
+//            vm.regs[first] &= vm.regs[second];
+            break;
+        }
+        case TEST_REGPTR: {
+            uint8_t first = READ_BYTE();
+            uint32_t second = GET_PTR(READ_PTR());
+            uint32_t temp = vm.regs[first] & second;
+
+            if(temp == 0) {
+                SET_FLAG(FLAG_ZF, 1);
+            } else if(temp < 0) {
+                SET_FLAG(FLAG_SF, 1);
+                SET_FLAG(FLAG_ZF, 0);
+            } else if(temp > 0) {
+                SET_FLAG(FLAG_SF, 0);
+                SET_FLAG(FLAG_ZF, 0);
+            }
+//            vm.regs[first] &= second;
+            break;
+        }
+        case TEST_REGDAT: {
+            uint32_t first = vm.regs[READ_BYTE()];
+            uint32_t second = READ_BYTE32();
+            uint32_t temp = first & second; 
+
+            SET_FLAG(FLAG_OF, 0);
+            SET_FLAG(FLAG_CF, 0);
+            if(temp == 0) {
+                SET_FLAG(FLAG_ZF, 1);
+            } else if(temp < 0) {
+                SET_FLAG(FLAG_SF, 1);
+                SET_FLAG(FLAG_ZF, 0);
+            } else if(temp > 0) {
+                SET_FLAG(FLAG_SF, 0);
+                SET_FLAG(FLAG_ZF, 0);
+            }
+//            vm.regs[first] &= second;
+            break;
+        }
+        case TEST_PTRPTR: {
+            ptr_t first = READ_PTR();
+            uint32_t second = GET_PTR(READ_PTR());
+            uint32_t temp = GET_PTR(first) & second;
+
+            if(temp == 0) {
+                SET_FLAG(FLAG_ZF, 1);
+            } else if(temp < 0) {
+                SET_FLAG(FLAG_SF, 1);
+                SET_FLAG(FLAG_ZF, 0);
+            } else if(temp > 0) {
+                SET_FLAG(FLAG_SF, 0);
+                SET_FLAG(FLAG_ZF, 0);
+            }
+//            SET_PTR(first, GET_PTR(first) & second);
+            break;
+        }
+        case TEST_PTRREG: {
+            ptr_t first = READ_PTR();
+            uint8_t second = READ_BYTE();
+            uint32_t temp = GET_PTR(first) & second;
+
+            if(temp == 0) {
+                SET_FLAG(FLAG_ZF, 1);
+            } else if(temp < 0) {
+                SET_FLAG(FLAG_SF, 1);
+                SET_FLAG(FLAG_ZF, 0);
+            } else if(temp > 0) {
+                SET_FLAG(FLAG_SF, 0);
+                SET_FLAG(FLAG_ZF, 0);
+            }
+//            SET_PTR(first, GET_PTR(first) & GET_REGISTER32(second));
+            break;
+        }
+        case TEST_PTRDAT: {
+            ptr_t first = READ_PTR();
+            uint32_t second = READ_BYTE32();
+            uint32_t temp = GET_PTR(first) & second;
+
+
+            if(temp == 0) {
+                SET_FLAG(FLAG_ZF, 1);
+            } else if(temp < 0) {
+                SET_FLAG(FLAG_SF, 1);
+                SET_FLAG(FLAG_ZF, 0);
+            } else if(temp > 0) {
+                SET_FLAG(FLAG_SF, 0);
+                SET_FLAG(FLAG_ZF, 0);
+            }
+
+//            SET_PTR(first, GET_PTR(first) & second);
             break;
         }
         default:

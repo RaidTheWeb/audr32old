@@ -34,128 +34,154 @@
 
 };*/
 
-const char ASCIITable[] = {
-    [0x0E] = '`',
-    [0x15] = 'q',
-    [0x16] = '1',
+const char ASCIITable[0xFF] = {
+    [0x01] = 'a',
+    [0x02] = 'b',
+    [0x03] = 'c',
+    [0x04] = 'd',
+    [0x05] = 'e',
+    [0x06] = 'f',
+    [0x07] = 'g',
+    [0x08] = 'h',
+    [0x09] = 'i',
+    [0x0A] = 'j',
+    [0x0B] = 'k',
+    [0x0C] = 'l',
+    [0x0D] = 'm',
+    [0x0E] = 'n',
+    [0x0F] = 'o',
+    [0x10] = 'p',
+    [0x11] = 'q',
+    [0x12] = 'r',
+    [0x13] = 's',
+    [0x14] = 't',
+    [0x15] = 'u',
+    [0x16] = 'v',
+    [0x17] = 'w',
+    [0x18] = 'x',
+    [0x19] = 'y',
     [0x1A] = 'z',
-    [0x1B] = 's',
-    [0x1C] = 'a',
-    [0x1D] = 'w',
-    [0x1E] = '2',
-    [0x21] = 'c',
-    [0x22] = 'x',
-    [0x23] = 'd',
-    [0x24] = 'e',
-    [0x25] = '4',
-    [0x26] = '3',
+    [0x1B] = '1',
+    [0x1C] = '2',
+    [0x1D] = '3',
+    [0x1E] = '4',
+    [0x1F] = '5',
+    [0x20] = '6',
+    [0x21] = '7',
+    [0x22] = '8',
+    [0x23] = '9',
+    [0x24] = '0',
+
+    [0x27] = '\b',
+    [0x28] = '\t',
     [0x29] = ' ',
-    [0x2A] = 'v',
-    [0x2B] = 'f',
-    [0x2C] = 't',
-    [0x2D] = 'r',
-    [0x2E] = '5',
-    [0x31] = 'n',
-    [0x32] = 'b',
-    [0x33] = 'h',
-    [0x34] = 'g',
-    [0x35] = 'y',
-    [0x36] = '6',
-    [0x3A] = 'm',
-    [0x3B] = 'j',
-    [0x3C] = 'u',
-    [0x3D] = '7',
-    [0x3E] = '8',
-    [0x41] = ',',
-    [0x42] = 'k',
-    [0x43] = 'i',
-    [0x44] = 'o',
-    [0x45] = '0',
-    [0x46] = '9',
-    [0x49] = '.',
-    [0x4A] = '/',
-    [0x4B] = 'l',
-    [0x4C] = ';',
-    [0x4D] = 'p',
+    
+    [0x2A] = '-',
+    [0x2B] = '=',
+    [0x2C] = '[',
+    [0x2D] = ']',
+    [0x2E] = '\\',
+    [0x2F] = '\\',
+
+    [0x30] = ';',
+    [0x31] = '\'',
+    [0x32] = '`',
+    [0x33] = ',',
+    [0x34] = '.',
+    [0x35] = '/',
+    
+    [0x4C] = '/',
+    [0x4D] = '*',
     [0x4E] = '-',
-    [0x52] = '\'',
-    [0x54] = '[',
-    [0x55] = '=',
-    [0x5A] = '\n',
-    [0x5B] = ']',
-    [0x5D] = '\\',
-    [0x66] = '\b',
-    [0x69] = '1',
-    [0x6B] = '4',
-    [0x6C] = '7',
-    [0x70] = '0',
-    [0x71] = '.',
-    [0x72] = '2',
-    [0x73] = '5',
-    [0x74] = '6',
-    [0x75] = '8',
-    [0x79] = '+',
-    [0x7A] = '3',
-    [0x7B] = '-',
-    [0x7C] = '*',
-    [0x7D] = '9',
+    [0x4F] = '+',
+    [0x50] = '\n',
+    [0x51] = '1',
+    [0x52] = '2',
+    [0x53] = '3',
+    [0x54] = '4',
+    [0x55] = '5',
+    [0x56] = '6',
+    [0x57] = '7',
+    [0x58] = '8',
+    [0x59] = '9',
+    [0x5A] = '0',
+    [0x5B] = '.'
 };
 
-static char UpperASCIITable[] = {
-    [0x0E] = '~',
-    [0x15] = 'Q',
-    [0x16] = '!',
+static char UpperASCIITable[0xFF] = {
+    [0x01] = 'A',
+    [0x02] = 'B',
+    [0x03] = 'C',
+    [0x04] = 'D',
+    [0x05] = 'E',
+    [0x06] = 'F',
+    [0x07] = 'G',
+    [0x08] = 'H',
+    [0x09] = 'I',
+    [0x0A] = 'J',
+    [0x0B] = 'K',
+    [0x0C] = 'L',
+    [0x0D] = 'M',
+    [0x0E] = 'N',
+    [0x0F] = 'O',
+    [0x10] = 'P',
+    [0x11] = 'Q',
+    [0x12] = 'R',
+    [0x13] = 'S',
+    [0x14] = 'T',
+    [0x15] = 'U',
+    [0x16] = 'V',
+    [0x17] = 'W',
+    [0x18] = 'X',
+    [0x19] = 'Y',
     [0x1A] = 'Z',
-    [0x1B] = 'S',
-    [0x1C] = 'A',
-    [0x1D] = 'W',
-    [0x1E] = '@',
-    [0x21] = 'C',
-    [0x22] = 'X',
-    [0x23] = 'D',
-    [0x24] = 'E',
-    [0x25] = '$',
-    [0x26] = '#',
-    [0x29] = ' ',
-    [0x2A] = 'V',
-    [0x2B] = 'F',
-    [0x2C] = 'T',
-    [0x2D] = 'R',
-    [0x2E] = '%',
-    [0x31] = 'N',
-    [0x32] = 'B',
-    [0x33] = 'H',
-    [0x34] = 'G',
-    [0x35] = 'Y',
-    [0x36] = '^',
-    [0x3A] = 'M',
-    [0x3B] = 'J',
-    [0x3C] = 'U',
-    [0x3D] = '&',
-    [0x3E] = '*',
-    [0x41] = '<',
-    [0x42] = 'K',
-    [0x43] = 'I',
-    [0x44] = 'O',
-    [0x45] = ')',
-    [0x46] = '(',
-    [0x49] = '>',
-    [0x4A] = '?',
-    [0x4B] = 'L',
-    [0x4C] = ':',
-    [0x4D] = 'P',
-    [0x4E] = '_',
-    [0x52] = '"',
-    [0x54] = '{',
-    [0x55] = '+',
-    [0x5A] = '\n',
-    [0x5B] = '}',
-    [0x5D] = '|',
-    [0x66] = '\b',
+    [0x1B] = '!',
+    [0x1C] = '@',
+    [0x1D] = '#',
+    [0x1E] = '$',
+    [0x1F] = '%',
+    [0x20] = '^',
+    [0x21] = '&',
+    [0x22] = '*',
+    [0x23] = '(',
+    [0x24] = ')',
 
+    [0x27] = '\b',
+    [0x28] = '\t',
+    [0x29] = ' ',
+    
+    [0x2A] = '_',
+    [0x2B] = '+',
+    [0x2C] = '{',
+    [0x2D] = '}',
+    [0x2E] = '|',
+    [0x2F] = '|',
+
+    [0x30] = ':',
+    [0x31] = '"',
+    [0x32] = '~',
+    [0x33] = '<',
+    [0x34] = '>',
+    [0x35] = '?',
+    
+    [0x4C] = '/',
+    [0x4D] = '*',
+    [0x4E] = '-',
+    [0x4F] = '+',
+    [0x50] = '\n',
+    [0x51] = '1',
+    [0x52] = '2',
+    [0x53] = '3',
+    [0x54] = '4',
+    [0x55] = '5',
+    [0x56] = '6',
+    [0x57] = '7',
+    [0x58] = '8',
+    [0x59] = '9',
+    [0x5A] = '0',
+    [0x5B] = '.'
 };
 
-#define KBD_PORT 0x0001
 #define KBD_INTNUM 0x0001
 #define KBD_QUERYNUM 0x0016
 
@@ -170,7 +196,7 @@ static size_t ascii_write_i = 0;
 static size_t ascii_read_i = 0;
 static char ascii_buf[2048];
 
-static uint32_t kbd_poll(device_t *dev) {
+static uint32_t kbd_poll(uint16_t port) {
     return kbd_buf[kbd_read_i];
 }
 
@@ -240,7 +266,7 @@ static void keyboardservices_handleint() {
             if(kbd_read_i == kbd_write_i) {
                 vm.regs[REG_R8] = 0x00;
                 vm.regs[REG_R9] = 0x00;
-                vm.flags[FLAG_ZF] = 1;
+                SET_FLAG(FLAG_ZF, 1);
             } else {
                 uint8_t data;
                 data = kbd_buf[kbd_read_i]; 
@@ -248,14 +274,14 @@ static void keyboardservices_handleint() {
                 ascii = ascii_buf[ascii_read_i]; 
                 vm.regs[REG_R8] = data;
                 vm.regs[REG_R9] = ascii;
-                vm.flags[FLAG_ZF] = 0;
+                SET_FLAG(FLAG_ZF, 0);
             }
             break;
         } 
     } 
 } 
 
-static void kbd_pull(device_t *dev, uint32_t data) {
+static void kbd_pull(uint16_t port, uint32_t data) {
     return;
 }
 
@@ -273,30 +299,18 @@ void kbd_set_data(device_t *dev, uint8_t scancode) {
     ascii_write_i++;
     ascii_write_i %= 2048;
 
-    interrupt_trigger(KBD_PORT, KBD_INTNUM); // Trigger interrupt on port 0x0001 with the interrupt number 0x0001
+    interrupt_trigger(0x01, KBD_INTNUM); // Trigger interrupt on port 0x0001 with the interrupt number 0x0001
     if(scancode > 0x7D) return; 
 }
 
-static void kbd_tick(device_t *dev) {
-    //printf("ticking keyboard!\n");
-}
-
-void kbd_init() {
-    struct Device devcopy = {
-        .id = (uint16_t)io_request_id(),
-        .set = 1,
-        .poll = kbd_poll,
-        .pull = kbd_pull,
-        .tick = kbd_tick,
-        .destroy = NULL
-    };
-    strncpy(devcopy.name, "kbd", sizeof(devcopy.name));
-    
+void kbd_init() { 
     iotableent_t keyboardservices = {
         .set = 1,
         .handle = keyboardservices_handleint
     };
     iotable.ioentries[KBD_QUERYNUM] = keyboardservices;
 
-    vm.devices[KBD_PORT] = devcopy;
+    vm.ports[0x20].set = 1;
+    vm.ports[0x20].read = kbd_poll;
+    vm.ports[0x20].write = kbd_pull;
 }

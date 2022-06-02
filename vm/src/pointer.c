@@ -2,14 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "bus.h"
 #include "vm.h"
 
-#define GET_PTR8(pointer) (vm.memory[pointer.addr])
-#define SET_PTR8(pointer, value) (vm.memory[pointer.addr] = (value))
-#define GET_PTR16(pointer) ((vm.memory[pointer.addr] << 8) | vm.memory[pointer.addr + 1])
-#define SET_PTR16(pointer, value) ((vm.memory[pointer.addr] = (value) >> 8)&(vm.memory[pointer.addr + 1] = (value)))
-#define GET_PTR32(pointer) (((vm.memory[pointer.addr] << 8) | vm.memory[pointer.addr + 1]) << 16) + ((vm.memory[pointer.addr + 2] << 8) | vm.memory[pointer.addr + 3])
-#define SET_PTR32(pointer, value) ((vm.memory[pointer.addr] = (value) >> 24)&(vm.memory[pointer.addr + 1] = (value) >> 16)&(vm.memory[pointer.addr + 2] = (value) >> 8)&(vm.memory[pointer.addr + 3] = (value)))
+// #define GET_PTR8(pointer) (vm.memory[pointer.addr])
+// #define SET_PTR8(pointer, value) (vm.memory[pointer.addr] = (value))
+// #define GET_PTR16(pointer) ((vm.memory[pointer.addr] << 8) | vm.memory[pointer.addr + 1])
+// #define SET_PTR16(pointer, value) ((vm.memory[pointer.addr] = (value) >> 8)&(vm.memory[pointer.addr + 1] = (value)))
+// #define GET_PTR32(pointer) (((vm.memory[pointer.addr] << 8) | vm.memory[pointer.addr + 1]) << 16) + ((vm.memory[pointer.addr + 2] << 8) | vm.memory[pointer.addr + 3])
+// #define SET_PTR32(pointer, value) ((vm.memory[pointer.addr] = (value) >> 24)&(vm.memory[pointer.addr + 1] = (value) >> 16)&(vm.memory[pointer.addr + 2] = (value) >> 8)&(vm.memory[pointer.addr + 3] = (value)))
 
 ptr_t READ_PTR() {
     ptr_t pointer;
@@ -40,13 +41,13 @@ ptr_t READ_PTR() {
         case PTRREG8: {
             uint8_t reg = READ_BYTE();
             int32_t offset = READ_BYTE32();
-            pointer.addr = GET_REGISTER8(reg) + offset;
+            pointer.addr = GET_REGISTER32(reg) + offset;
             break;
         }
         case PTRREG16: {
             uint8_t reg = READ_BYTE();
             int32_t offset = READ_BYTE32();
-            pointer.addr = GET_REGISTER16(reg) + offset;
+            pointer.addr = GET_REGISTER32(reg) + offset;
             break;
         }
         case PTRREG32: {

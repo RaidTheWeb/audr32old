@@ -15,14 +15,15 @@
 
 void initemitter(struct Emitter *emitter, char *fullPath) {
     strcpy(emitter->fullPath, fullPath);
-    emitter->code = (uint8_t *)malloc(0xFFFF * sizeof(uint8_t));
+    emitter->code = (uint8_t *)malloc(1);
     emitter->cp = 0;
-    emitter->written = 0;
+    emitter->written = 0; // RAM Start Offset
 }
 
 void emitbyte(struct Emitter *emitter, uint8_t byte) {
     emitter->code[emitter->cp++] = byte;
     emitter->written++;
+    emitter->code = realloc(emitter->code, emitter->written + 1);
 }
 
 void emitbyte16(struct Emitter *emitter, uint16_t byte16) {
@@ -53,6 +54,6 @@ void relocatebyte32(struct Emitter *emitter, uint32_t loc, uint32_t byte32) {
 
 void writefile(struct Emitter *emitter) {
     FILE *fp = fopen(emitter->fullPath, "w+b");
-    fwrite(emitter->code, sizeof(uint8_t), 0xFFFF, fp);
+    fwrite(emitter->code, sizeof(uint8_t), emitter->written, fp);
     fclose(fp);
 }

@@ -1,0 +1,10 @@
+I can include various files using #include "file.asm"
+
+
+When the compiler outputs something, it'll generate an .asm file for each thing.
+
+Currently, we do not support multiple files in either the assembler or the compiler.
+
+The compiler will generate each thing individually and output a seperate assembly file for each the first caommand line being the entrypoint
+	(this means nothing to the compiler, other than to feed this file as the first one into the assembler and generate an entrypoint call to main),
+	whereas the assembler will grab that input, treat the first input on the command line as the *entrypoint* for the resulting "executable"

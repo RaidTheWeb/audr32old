@@ -14,8 +14,8 @@ Start32_bit:
 
 loop: jmp $
 
-.data
     KBOOT_STRING:
+    .data
         .ascii "Booting kernel..."
         .byte 0x0A
         .byte 0x00

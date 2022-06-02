@@ -6,15 +6,45 @@
 #include "common.h"
 
 static void PUSH(uint32_t value) {
-    *vm.stacktop = value;
-    vm.stacktop++;
-    vm.regs[REG_SP]++; 
+    vm.regs[REG_SP] -= 4;
+    ptr_t pointer = {
+        .addr = vm.regs[REG_SP],
+        .ptrmode = 0x03
+    };
+    SET_PTR(pointer, value);
 }
 
 static uint32_t POP() {
-    vm.stacktop--;
-    vm.regs[REG_SP]--;
-    return *vm.stacktop;
+    
+    ptr_t pointer = {
+        .addr = vm.regs[REG_SP],
+        .ptrmode = 0x03
+    };
+    vm.regs[REG_SP] += 4;
+    return GET_PTR(pointer);
+}
+
+void dopusha(opcodepre_t prefix) {
+    uint32_t temp = vm.regs[REG_SP];
+    PUSH(vm.regs[REG_AX]);
+    PUSH(vm.regs[REG_CX]);
+    PUSH(vm.regs[REG_DX]);
+    PUSH(vm.regs[REG_BX]);
+    PUSH(temp);
+    PUSH(vm.regs[REG_BP]);
+    PUSH(vm.regs[REG_SI]);
+    PUSH(vm.regs[REG_DI]);
+}
+
+void dopopa(opcodepre_t prefix) {
+    vm.regs[REG_DI] = POP();
+    vm.regs[REG_SI] = POP();
+    vm.regs[REG_BP] = POP();
+    vm.regs[REG_SP] += 4; // skip stack pointer push for some reason (https://www.felixcloutier.com/x86/popa:popad.html)
+    vm.regs[REG_BX] = POP();
+    vm.regs[REG_DX] = POP();
+    vm.regs[REG_CX] = POP();
+    vm.regs[REG_AX] = POP();
 }
 
 #define POP_REG 0x00

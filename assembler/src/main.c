@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
     if(i >= argc) usage(argv[0]);
 
     FILE *file;
+    int inputcomblen = 0;
     while(i < argc) {
         file = fopen(argv[i], "r");
 
@@ -72,12 +73,13 @@ int main(int argc, char **argv) {
 
         fclose(file);
         buffer[size + 1] = '\0';
+
         snprintf(inputcomb, MAXINPUT, "%s\n\n%s", strdup(inputcomb), strdup(buffer));
+        inputcomblen = inputcomblen + strlen(buffer) + 1;
         
         i++;
     }
-    FILE *e = fopen("out.asm", "w");
-    fputs(inputcomb, e);
+    inputcomb[inputcomblen + 1] = '\0';
 
     compiler(inputcomb, outfilename, offset);
 

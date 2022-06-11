@@ -10,30 +10,6 @@
 #include "io.h"
 #include "vm.h"
 
-/*const char ASCIITable[] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Function Keys
-    0, '`', 0, 0, 0, 0, 0, 0, 'q', 
-    '1', 0, 0, 0, 'z', 's', 'a', 'w',
-    '2', 0, 0, 'c', 'x', 'd', 'e', '4',
-    '3', 0, 0, ' ', 'v', 'f', 't', 'r',
-    '5', 0, 0, 'n', 'b', 'h', 'g', 'y',
-    '6', 0, 0, 0, 'm', 'j', 'u', '7',
-    '8', 0, 0, ',', 'k', 'i', 'o', '0',
-    '9', 0, 0, '.', '/', 'l', ';', 'p',
-    '-', 0, 0, 0, '\'', 0, '[', '=', 0,
-    0, 0, 0, '\n', ']', 0, '\\', 0, 0, 0,
-    0, 0, 0, 0, 0, '\b', 0, 0, '1', 0, '4',
-    '7', 0, 0, 0, '0', '.', '2', '5', '6',
-    '8', 0, 0, 0, '+', '3', '-', '*', '9',
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, '/', 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, '\n', // 0...
-
-};*/
-
 const char ASCIITable[0xFF] = {
     [0x01] = 'a',
     [0x02] = 'b',
@@ -200,8 +176,8 @@ static uint32_t kbd_poll(uint16_t port) {
     return kbd_buf[kbd_read_i];
 }
 
-static uint8_t pressonly;
-static uint8_t releaseonly;
+static uint8_t pressonly = 0;
+static uint8_t releaseonly = 1;
 
 static void keyboardservices_handleint() {
     uint8_t mode = vm.regs[REG_R10];
@@ -226,7 +202,10 @@ static void keyboardservices_handleint() {
                 case 0x01: { // CLEAR BUFFER
                     for(int i = 0; i < 2048; i++) {
                         kbd_buf[i] = 0x00; // clear
+                        ascii_buf[i] = 0x00; // clear
                     }
+                    ascii_write_i = 0;
+                    ascii_read_i = 0;
                     kbd_write_i = 0;
                     kbd_read_i = 0;
                     break;
@@ -287,15 +266,16 @@ static void kbd_pull(uint16_t port, uint32_t data) {
 
 void interrupt_trigger(uint16_t, uint16_t);
 
-void kbd_set_data(device_t *dev, uint8_t scancode) {
-    if(scancode == 0x12 || scancode == 0x59) { uppercase = 1; }
-    else if(scancode == (0x12 | 0x80) || scancode == (0x59 | 0x80)) { uppercase = 0; }
-    if(scancode > 0x7D && pressonly) return;
-    if(scancode < 0x7D && releaseonly) return;
+void kbd_set_data(device_t *dev, uint8_t scancode) { 
+    if(scancode == 0x61 || scancode == 0x65) { uppercase = 1; }
+    else if(scancode == (0x61 | 0x80) || scancode == (0x65 | 0x80)) { uppercase = 0; }
+    if(scancode > 0x80 && pressonly) return;
+    if(scancode < 0x81 && releaseonly) return; 
     kbd_buf[kbd_write_i] = scancode;
     kbd_write_i++;
     kbd_write_i %= 2048;
     ascii_buf[ascii_write_i] = uppercase ? UpperASCIITable[scancode & 0x7F] : ASCIITable[scancode & 0x7F];
+    printf("0x%02x, %d, '%c', 0x%02x\n", scancode & 0x7F, uppercase, ascii_buf[ascii_write_i], ascii_buf[ascii_write_i]);
     ascii_write_i++;
     ascii_write_i %= 2048;
 

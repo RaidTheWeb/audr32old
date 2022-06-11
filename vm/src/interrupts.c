@@ -10,7 +10,6 @@
 #include "io.h"
 #include "vm.h"
 
-int interruptpending = 0;
 interrupt_t interruptbuffer[MAX_INTERRUPTS + 1];
 int interruptpointer = 0;
 
@@ -37,7 +36,7 @@ void handleint(interrupt_t);
 
 void interrupt_trigger(uint16_t src, uint16_t num) {
     //printf("interrupt triggered, src=0x%04x dest=0x%04x\n", src, num);
-    interruptpending = 1;
+    vm.interruptpending = 1;
     interrupt_t inter = { .busid = src, .num = num };
     handleint(inter);
     interruptbuffer[interruptpointer++] = inter;
@@ -49,20 +48,18 @@ static interrupt_t nullinterrupt = { .busid = 0, .num = 0 }; // NULL interrupt
 
 interrupt_t interrupt_read() {
     if(interruptpointer < 0) return nullinterrupt;
-    if(interruptpending == 0) return nullinterrupt;
+    if(vm.interruptpending == 0) return nullinterrupt;
     interrupt_t inter = interruptbuffer[interruptpointer--];
-    if(interruptpointer < 0) interruptpending = 0;
+    if(interruptpointer < 0) vm.interruptpending = 0;
     return inter;
 }
 
 void handleint(interrupt_t interrupt) {
     if(iotable.ioentries[interrupt.num].set) { 
         iotable.ioentries[interrupt.num].handle();
+        vm.interruptpending = 0;
     }
     if(idtable.intent[interrupt.num].set) {
-
-        //*vm.stacktop = vm.regs[REG_IP];
-        //vm.stacktop++;
         vm.regs[REG_SP] -= 4; 
         ptr_t pointer = {
             .addr = vm.regs[REG_SP],
@@ -70,6 +67,7 @@ void handleint(interrupt_t interrupt) {
         };
         SET_PTR(pointer, vm.regs[REG_IP]); 
         vm.regs[REG_IP] = idtable.intent[interrupt.num].addr;
+        vm.interruptpending = 0;
     }
 }
 
@@ -89,7 +87,7 @@ void wait_until_triggered(uint16_t busid, uint16_t num) {
 }
 
 static uint32_t read_porta(uint16_t port) {
-    return interruptpending;
+    return vm.interruptpending;
 }
 
 static void write_porta(uint16_t port, uint32_t data) {

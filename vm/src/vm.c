@@ -8,17 +8,17 @@
 
 #include "bus.h"
 #include "clock.h"
-#include "drive.h"
+#include "disk.h"
 #include "serial.h"
 #include "vm.h"
+#include "pmu.h"
 #include "common.h"
 #include "interrupts.h"
 #include "ram.h"
 
 struct VM vm;
 
-#define CLOCKSPEED 1000000 // HZ
-//#define CLOCKSPEED 1 // HZ
+#define CLOCKSPEED 25000000 // 25MHz
 #define FPS 60
 #define TPF 1
 #define TICKSPEED (FPS * TPF) // TPS
@@ -74,6 +74,12 @@ static char *instructions[] = {
     [OP_PUSHA] = "pusha"
 };
 
+static char *exceptionnames[] = {
+    [EXC_BUSERROR] = "BUSERROR",
+    [EXC_BADADDR] = "BADADDR",
+    [EXC_BADINST] = "BADINST"
+};
+
 static char *resolveinstruction(uint8_t instruction) {
     return instructions[instruction];
 }
@@ -88,9 +94,6 @@ void SET_FLAG(uint8_t flag, uint8_t value) {
 
 void SET_REGISTER(uint8_t reg, registeruni_t value) {
     switch(reg) {
-        /*case REG_AL:
-            SET_REGISTER8(reg, value.u8);
-            break;*/
         case REG_AX:
         case REG_BX:
         case REG_CX:
@@ -123,6 +126,15 @@ void SET_REGISTER(uint8_t reg, registeruni_t value) {
             exit(1);
             return;
     }
+}
+
+void audr32_exception(int exce) {
+    if(vm.curexception) {
+        printf("Double exception occurred! (prev: %s, cur: %s)\n", exceptionnames[vm.curexception], exceptionnames[exce]);
+        exit(1);
+    }
+
+    vm.curexception = exce;
 }
 
 /** Misc */
@@ -182,7 +194,6 @@ void dotest(opcodepre_t);
 void doloop(opcodepre_t);
 
 static int doopcode(opcodepre_t opcodeprefix) {
-    //printf("instruction: 0x%02x, mode: 0x%02x \n", opcodeprefix.instruction, opcodeprefix.mode);
     switch(opcodeprefix.instruction) {
         /** Misc */
         case OP_HALT:
@@ -193,13 +204,8 @@ static int doopcode(opcodepre_t opcodeprefix) {
             domov(opcodeprefix);
             return NORMOP;
         case OP_INT:
-           // printf("vm: int instruction!\n");
             doint(opcodeprefix);
-            //printf("vm: handled int instruction!\n");
             return NORMOP;
-        /*case OP_RDTSC:
-            dordtsc(opcodeprefix);
-            return NORMOP;*/
         case OP_JMP:
             dojmp(opcodeprefix);
             return NORMOP;
@@ -366,39 +372,19 @@ static int doopcode(opcodepre_t opcodeprefix) {
             doloop(opcodeprefix);
             return NORMOP;
 
-        /** FUNNIES */
+        default: // invalid instruction
+            audr32_exception(EXC_BADINST);
+            return NORMOP;
         
     }
     return NORMOP;
 }
-
-interrupt_t interrupt_read(void);
-
-void screen_set_title(const char *);
-
-static void halt() {
-    // screen_set_title("VM - Execution Suspended");
-    /*for(;;) {
-        FOR_DEVICES(id, dev) {
-            if(dev->id == 0 || !dev->tick) continue;
-            dev->tick(dev);
-        }
-        interrupt_t inter = interrupt_read();
-        if(inter.busid != 0) break;
-        vm.tsc++;
-    }*/
-    screen_set_title("Audr32");
-}
-
-static void ceaseop() {
-    for(;;);
-}
-
 uint32_t cpu_readbyte(uint32_t addr) {
     uint32_t busval;
     if(read_bus(addr, BUS_BYTE, &busval) == BUS_ERR) {
-        fprintf(stderr, "Bad read (8-bit) from 0x%08x", addr);
-        exit(1);
+        // fprintf(stderr, "Bad read (8-bit) from 0x%08x", addr);
+        // exit(1);
+        audr32_exception(EXC_BADADDR);
     }
 
     return busval;
@@ -408,8 +394,9 @@ uint32_t cpu_readword(uint32_t addr) {
     uint32_t busval;
 
     if(read_bus(addr, BUS_WORD, &busval) == BUS_ERR) {
-        fprintf(stderr, "Bad read (16-bit) from 0x%08x", addr);
-        exit(1);
+        // fprintf(stderr, "Bad read (16-bit) from 0x%08x", addr);
+        // exit(1);
+        audr32_exception(EXC_BADADDR);
     }
 
     return busval;
@@ -419,8 +406,9 @@ uint32_t cpu_readdword(uint32_t addr) {
     uint32_t busval;
 
     if(read_bus(addr, BUS_DWORD, &busval) == BUS_ERR) {
-        fprintf(stderr, "Bad read (32-bit) from 0x%08x", addr);
-        exit(1);
+        // fprintf(stderr, "Bad read (32-bit) from 0x%08x", addr);
+        // exit(1);
+        audr32_exception(EXC_BADADDR);
     }
 
     return busval;
@@ -428,24 +416,27 @@ uint32_t cpu_readdword(uint32_t addr) {
 
 void cpu_writebyte(uint32_t addr, uint32_t value) {
     if(write_bus(addr, BUS_BYTE, value) == BUS_ERR) {
-        fprintf(stderr, "Bad write (8-bit) to 0x%08x", addr);
-        exit(1);
+        // fprintf(stderr, "Bad write (8-bit) to 0x%08x", addr);
+        // exit(1);
+        audr32_exception(EXC_BADADDR);
     }
 }
 
 void cpu_writeword(uint32_t addr, uint32_t value) {
 
     if(write_bus(addr, BUS_WORD, value) == BUS_ERR) {
-        fprintf(stderr, "Bad write (16-bit) to 0x%08x", addr);
-        exit(1);
+        // fprintf(stderr, "Bad write (16-bit) to 0x%08x", addr);
+        // exit(1);
+        audr32_exception(EXC_BADADDR);
     }
 }
 
 void cpu_writedword(uint32_t addr, uint32_t value) {
 
     if(write_bus(addr, BUS_DWORD, value) == BUS_ERR) {
-        fprintf(stderr, "Bad write (32-bit) to 0x%08x", addr);
-        exit(1);
+        // fprintf(stderr, "Bad write (32-bit) to 0x%08x", addr);
+        // exit(1);
+        audr32_exception(EXC_BADADDR);
     }
 }
 
@@ -455,15 +446,15 @@ void kbd_init(void);
 
 void wait_until_triggered(uint16_t, uint16_t);
 
-void run(uint32_t ramsize, char **drives, int drivenum) {
-
+void run(uint32_t ramsize) {
     load_rom(optbootrom);
     init_bus(ramsize);
     init_serial();
     init_clock();
     init_drive();
-    for(int i = 0; i < drivenum; i++) {
-        if(!drive_attachimage(drives[i])) {
+    init_pmu(); 
+    for(int i = 0; i < vm.drivenum; i++) {
+        if(!drive_attachimage(vm.drives[i])) {
             exit(1);
         }
     }
@@ -472,9 +463,8 @@ void run(uint32_t ramsize, char **drives, int drivenum) {
         load_ram(optramimage);
     }
 
-    vm.regs[REG_IP] = ADDR_ROM; // should point to the offset of which to load the image in memory. 
+    vm.regs[REG_IP] = optip; // should point to the offset of which to load the image in memory. 
     vm.regs[REG_SP] = ADDR_STACKRAMEND;
-    vm.curstack = ADDR_STACKRAMEND;
     srand(time(NULL)); // seed the random number generator
 
     interrupt_init();
@@ -490,8 +480,9 @@ void run(uint32_t ramsize, char **drives, int drivenum) {
     int ticks = 0;
     uint32_t tick_start = SDL_GetTicks();
     uint32_t tick_end = SDL_GetTicks();
+    vm.running = 1;
 
-    for(;;) {
+    while(vm.running) {
         int dueticks = SDL_GetTicks() - tick_start;
 
         tick_start = SDL_GetTicks();
@@ -514,50 +505,24 @@ void run(uint32_t ramsize, char **drives, int drivenum) {
             clock_tick(1);
             
             while(cyclesleft > 0) {
-                cyclesleft--; 
+                if(vm.halted) {
+                    if(vm.curexception || vm.interruptpending) {
+                        vm.halted = 0;
+                    } else {
+                        continue;
+                    }
+                }
+                cyclesleft--;
                 opcodepre_t opcodeprefix;
                 opcodeprefix.instruction = READ_BYTE();
                 opcodeprefix.mode = READ_BYTE();
-                // printf("Current instruction opcode: 0x%02x|0x%02x (%s)\n", opcodeprefix.instruction, opcodeprefix.mode, resolveinstruction(opcodeprefix.instruction));
                 int result = doopcode(opcodeprefix);
-                if(result == HALTOP) halt();
-                // printf("+==== Register Dump ====+\n");
-                // printf("AX: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_AX), GET_REGISTER32(REG_AX), GET_REGISTER32(REG_AX));
-                // printf("BX: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_BX), GET_REGISTER32(REG_BX), GET_REGISTER32(REG_BX));
-                // printf("CX: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_CX), GET_REGISTER32(REG_CX), GET_REGISTER32(REG_CX));
-                // printf("DX: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_DX), GET_REGISTER32(REG_DX), GET_REGISTER32(REG_DX));
-                // printf("SI: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_SI), GET_REGISTER32(REG_SI), GET_REGISTER32(REG_SI));
-                // printf("DI: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_DI), GET_REGISTER32(REG_DI), GET_REGISTER32(REG_DI));
-                // printf("SP: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_SP), GET_REGISTER32(REG_SP), GET_REGISTER32(REG_SP));
-                // printf("BP: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_BP), GET_REGISTER32(REG_BP), GET_REGISTER32(REG_BP));
-                // printf("IP: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_IP), GET_REGISTER32(REG_IP), GET_REGISTER32(REG_IP));
-                // printf("R0: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R0), GET_REGISTER32(REG_R0), GET_REGISTER32(REG_R0));
-                // printf("R1: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R1), GET_REGISTER32(REG_R1), GET_REGISTER32(REG_R1));
-                // printf("R2: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R2), GET_REGISTER32(REG_R2), GET_REGISTER32(REG_R2));
-                // printf("R3: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R3), GET_REGISTER32(REG_R3), GET_REGISTER32(REG_R3));
-                // printf("R4: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R4), GET_REGISTER32(REG_R4), GET_REGISTER32(REG_R4));
-                // printf("R5: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R5), GET_REGISTER32(REG_R5), GET_REGISTER32(REG_R5));
-                // printf("R6: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R6), GET_REGISTER32(REG_R6), GET_REGISTER32(REG_R6));
-                // printf("R7: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R7), GET_REGISTER32(REG_R7), GET_REGISTER32(REG_R7));
-                // printf("R8: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R8), GET_REGISTER32(REG_R8), GET_REGISTER32(REG_R8));
-                // printf("R9: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R9), GET_REGISTER32(REG_R9), GET_REGISTER32(REG_R9));
-                // printf("R10: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R10), GET_REGISTER32(REG_R10), GET_REGISTER32(REG_R10));
-                // printf("R11: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R11), GET_REGISTER32(REG_R11), GET_REGISTER32(REG_R11));
-                // printf("R12: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R12), GET_REGISTER32(REG_R12), GET_REGISTER32(REG_R12));
-                // printf("R13: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R13), GET_REGISTER32(REG_R13), GET_REGISTER32(REG_R13));
-                // printf("R14: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R14), GET_REGISTER32(REG_R14), GET_REGISTER32(REG_R14));
-                // printf("R15: 0x%08x (%u/%d)\n", GET_REGISTER32(REG_R15), GET_REGISTER32(REG_R15), GET_REGISTER32(REG_R15));
-                // printf("+==== Register Dump ====+\n");
-                //
-                // printf("+==== Stack Dump ====+\n");
-                // for(size_t i = ADDR_STACKRAMEND - 128; i < ADDR_STACKRAMEND + 32; i += 4) {
-                //     if(i == vm.regs[REG_SP]) printf("*%lu 0x%08x\n", i, cpu_readdword(i));
-                //     else printf("%lu 0x%08x\n", i, cpu_readdword(i));
-                // }
-                // printf("+==== Stack Dump ====+\n");
+                if(result == HALTOP) vm.halted = 1;
             }
 
         }
+
+        printf("bx: 0x%08x\n", vm.regs[REG_BX]);
 
         if((ticks%TPF) == 0) {
             void screen_blit(device_t *dev);
@@ -577,6 +542,4 @@ void run(uint32_t ramsize, char **drives, int drivenum) {
             SDL_Delay(delay);
         }
     }
-
-    for(;;); // hang "CPU" (Out of instructions/Halted)
 }

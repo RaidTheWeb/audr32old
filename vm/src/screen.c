@@ -2,14 +2,6 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#define THREADED
-
-
-#ifdef THREADED
-    #include <pthread.h>
-#endif
-
 #include <SDL2/SDL.h>
 
 #include "bitmap_font.h"
@@ -18,11 +10,6 @@
 #include "common.h"
 #include "io.h"
 #include "vm.h"
-
-#ifdef THREADED
-    static pthread_t screen_blit_th;
-#endif
-
 static uint8_t keymap[SDL_NUM_SCANCODES] = {
     [SDL_SCANCODE_A] = 0x01,
     [SDL_SCANCODE_B] = 0x02,
@@ -62,7 +49,7 @@ static uint8_t keymap[SDL_NUM_SCANCODES] = {
     [SDL_SCANCODE_9] = 0x23,
     [SDL_SCANCODE_0] = 0x24,
 
-    [SDL_SCANCODE_RETURN] = 0x25,
+    [SDL_SCANCODE_RETURN] = 0x50,
     [SDL_SCANCODE_ESCAPE] = 0x26,
     [SDL_SCANCODE_BACKSPACE] = 0x27,
     [SDL_SCANCODE_TAB] = 0x28,
@@ -135,21 +122,18 @@ static uint8_t keymap[SDL_NUM_SCANCODES] = {
 
 #define VIDEOSERVICE 0x10
 
-static int stop = 0;
 static SDL_Window *window;
 static SDL_Renderer *renderer;
 static SDL_Texture *texture;
 
-static void screen_destroy(device_t *dev) {
-    stop = 1;
-    pthread_join(screen_blit_th, NULL);
+void screen_destroy(device_t *dev) {
+    vm.running = 0;
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
 
-static int running = 0;
 static uint32_t *framebuffer = 0; // actual framebuffer turned into an SDL texture later;
 static uint8_t *backbuffer = 0; // memory mapped framebuffer
 
@@ -162,18 +146,14 @@ void screen_set_title(const char *title) {
 }
 
 static void screen_tick(device_t *dev) {
-    //printf("ticking screen!\n");
     for(SDL_Event e; SDL_PollEvent(&e);) {
         switch(e.type) {
             case SDL_KEYDOWN:
             case SDL_KEYUP:
-                // (e.type == SDL_KEYUP ? 0x80 : 0x00) 
                 kbd_set_data(&vm.devices[0x0001], (e.type == SDL_KEYUP ? 0x80 : 0x00) | keymap[e.key.keysym.scancode]);
                 break;
             case SDL_QUIT:
-                running = 0;
-                io_remove_device(dev->id);
-                free(vm.memory);
+                screen_destroy(dev);
                 exit(1);
                 break;
             default:
@@ -187,13 +167,13 @@ void screen_blit(device_t *dev) {
     for(size_t i = 0; i < ADDR_FRAMEBUFFEREND; i+=4) { 
         ptr_t pointer = {
             .addr = ADDR_FRAMEBUFFER + i,
-            .ptrmode = 0x03, // 32 bit
+            .ptrmode = 0x03 // 32 bit
         };  
         uint32_t data = GET_PTR(pointer);
         framebuffer[k++] = data;
     }
 
-    SDL_UpdateTexture(texture, NULL, framebuffer, WINDOW_WIDTH*sizeof(uint32_t));
+    SDL_UpdateTexture(texture, NULL, framebuffer, WINDOW_WIDTH * sizeof(uint32_t));
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
@@ -252,8 +232,9 @@ static void drawchar(char c, int x, int y, uint32_t hex_fg, uint32_t hex_bg) {
     uint8_t *glyph = &font[c * bitmap_font_height];
 
     for (int i = 0; i < bitmap_font_height; i++) {
-        for (int j = bitmap_font_width - 1; j >= 0; j--)
+        for (int j = bitmap_font_width - 1; j >= 0; j--) {
             setpixel(x++, y, bit_test(glyph[i], j) ? hex_fg : hex_bg);
+        }
         y++;
         x = orig_x;
     } 
@@ -318,7 +299,7 @@ static void videoservice_handleint(void) {
     uint8_t mode = vm.regs[REG_R10];
     switch(mode) {
         case 0x07: { // PRINT INTEGER
-            // dx: character
+            // dx: number
             // bx: colour
            
             uint32_t c = vm.regs[REG_DX];
@@ -430,15 +411,6 @@ static void videoservice_handleint(void) {
     } 
 }
 
-void screen_window_loop(device_t *dev) {
-    running = 1;
-    while(running) {
-        screen_blit(dev);
-        SDL_Delay(5000);
-    }
-    return;
-}
-
 void write_fb(uint32_t addr, uint32_t type, uint32_t value) {
     switch(type) {
         case BUS_BYTE:
@@ -507,4 +479,6 @@ void screen_init(void) {
         .handle = videoservice_handleint
     };
     iotable.ioentries[VIDEOSERVICE] = videoservice;
+
+    busregs[0x03] = 0x16161616; // SCREENMODE (16 colour)
 }

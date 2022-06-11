@@ -5,9 +5,11 @@
 #include <string.h>
 
 #include "bus.h"
-#include "drive.h"
+#include "disk.h"
 #include "ram.h"
 #include "vm.h"
+
+uint32_t busregs[10]; // bus registers
 
 void write_fb(uint32_t, uint32_t, uint32_t);
 uint32_t read_fb(uint32_t, uint32_t);
@@ -91,11 +93,14 @@ int write_bus(uint32_t addr, uint32_t type, uint32_t value) {
         addr -= ADDR_FRAMEBUFFER;
         write_fb(addr, type, value);
     } else if(addr >= ADDR_ROM && addr < ADDR_ROMEND) {
-        // it's write only (maybe throw an illegal memory access exception)
+        // it's read only (maybe throw an illegal memory access exception)
         return 1;
-    } else if(addr >= ADDR_BLOCKBUF && addr < ADDR_BLOCKBUFEND) {
-        addr -= ADDR_BLOCKBUF;
-        write_blockbuf(addr, type, value);
+    } else if(addr >= ADDR_SECTORCACHE && addr < ADDR_SECTORCACHEEND) {
+        addr -= ADDR_SECTORCACHE;
+        write_sectorcache(addr, type, value);
+    } else if(addr >= ADDR_BUSREGISTERS && addr < ADDR_BUSREGISTERSEND) {
+        // it's read only (maybe throw an illegal memory access exception)
+        return 1;
     }
     return 1;
 }
@@ -110,9 +115,17 @@ int read_bus(uint32_t addr, uint32_t type, uint32_t *value) {
     } else if(addr >= ADDR_ROM && addr < ADDR_ROMEND) {
         addr -= ADDR_ROM;
         *value = read_rom(addr, type);
-    } else if(addr >= ADDR_BLOCKBUF && addr < ADDR_BLOCKBUFEND) {
-        addr -= ADDR_BLOCKBUF;
-        *value = read_blockbuf(addr, type);
+    } else if(addr >= ADDR_SECTORCACHE && addr < ADDR_SECTORCACHEEND) {
+        addr -= ADDR_SECTORCACHE;
+        *value = read_sectorcache(addr, type);
+    } else if(addr >= ADDR_BUSREGISTERS && addr < ADDR_BUSREGISTERSEND) {
+        addr -= ADDR_BUSREGISTERS;
+        printf("bus: 0x%08x\n", addr);
+        if(type == BUS_DWORD) {
+            *value = busregs[addr];
+            return 1;
+        }
+        return BUS_ERR;
     }
     return 1;
 }

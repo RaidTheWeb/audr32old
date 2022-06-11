@@ -1374,7 +1374,7 @@ static void parsemacro(struct Parser *parser, struct Lexer *lexer) {
     } else if(strcmp(macroname.text, "org") == 0) { // data origin
         if(checktoken(parser, TOK_NUMBER)) {
             emitter.cp = strtol(parser->curtoken.text, NULL, 10);
-            emitter.written = strtol(parser->curtoken.text, NULL, 10);
+            if(emitter.cp > emitter.written) emitter.written = emitter.cp;
             match(parser, lexer, TOK_NUMBER);
         }
     } else if(strcmp(macroname.text, "include") == 0) { // include assembly file 
@@ -1425,7 +1425,6 @@ static void parseperiod(struct Parser *parser, struct Lexer *lexer) {
         mode = 0;
         return;
     } else if(strcmp(operator.text, "data") == 0) { // raw data
-        // printf(".data section\n");
         mode = 1;
         return;
     } else if(strcmp(operator.text, "global") == 0) { // global (ignore for now)

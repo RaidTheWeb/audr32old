@@ -20,7 +20,6 @@ void doadd(opcodepre_t prefix) {
 
             vm.regs[first] += vm.regs[second];
 
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case ADD_REGPTR: {
@@ -29,7 +28,6 @@ void doadd(opcodepre_t prefix) {
 
             vm.regs[first] += second;
 
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case ADD_REGDAT: {
@@ -38,7 +36,6 @@ void doadd(opcodepre_t prefix) {
 
             vm.regs[first] += second;
 
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case ADD_PTRPTR: {
@@ -84,7 +81,6 @@ void dosub(opcodepre_t prefix) {
 
             vm.regs[first] -= vm.regs[second];
 
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case SUB_REGPTR: {
@@ -93,7 +89,6 @@ void dosub(opcodepre_t prefix) {
 
             vm.regs[first] -= second;
 
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case SUB_REGDAT: {
@@ -101,7 +96,6 @@ void dosub(opcodepre_t prefix) {
             uint32_t second = READ_BYTE32();
 
             vm.regs[first] -= second;
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case SUB_PTRPTR: {
@@ -148,7 +142,6 @@ void dodiv(opcodepre_t prefix) {
 
             vm.regs[first] = vm.regs[first] / vm.regs[second];
             vm.regs[REG_AX] = vm.regs[first] % vm.regs[second]; // tramples AX
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case DIV_REGPTR: {
@@ -157,7 +150,6 @@ void dodiv(opcodepre_t prefix) {
 
             vm.regs[first] = vm.regs[first] / second;
             vm.regs[REG_AX] = vm.regs[first] % vm.regs[second]; // tramples AX
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case DIV_REGDAT: {
@@ -166,7 +158,6 @@ void dodiv(opcodepre_t prefix) {
 
             vm.regs[first] = vm.regs[first] / second;
             vm.regs[REG_AX] = vm.regs[first] % second; // tramples AX
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case DIV_PTRPTR: {
@@ -214,7 +205,6 @@ void domul(opcodepre_t prefix) {
 
             vm.regs[first] = vm.regs[first] * vm.regs[second];
 
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case MUL_REGPTR: {
@@ -223,7 +213,6 @@ void domul(opcodepre_t prefix) {
 
             vm.regs[first] = vm.regs[first] * second;
 
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case MUL_REGDAT: {
@@ -232,7 +221,6 @@ void domul(opcodepre_t prefix) {
 
             vm.regs[first] = vm.regs[first] * second;
 
-            if(first == REG_SP) vm.curstack = GET_REGISTER32(first);
             break;
         }
         case MUL_PTRPTR: {
@@ -271,7 +259,6 @@ void doinc(opcodepre_t prefix) {
             uint8_t reg = READ_BYTE();
             vm.regs[reg]++;
 
-            if(reg == REG_SP) vm.curstack = GET_REGISTER32(reg);
             break;
         }
         case INC_PTR: {
@@ -296,7 +283,6 @@ void dodec(opcodepre_t prefix) {
             if(vm.regs[reg] > 0)
                 vm.regs[reg]--;
 
-            if(reg == REG_SP) vm.curstack = GET_REGISTER32(reg);
             break;
         }
         case DEC_PTR: {
@@ -310,155 +296,6 @@ void dodec(opcodepre_t prefix) {
             return;
     }
 }
-
-/*//        DEST - SR
-#define CMP_REGREG 0x00
-#define CMP_REGDAT 0x01
-#define CMP_DATDAT 0x02
-#define CMP_DATREG 0x03
-
-#define CMP_OP_EQ 0x00
-#define CMP_OP_LT 0x01
-#define CMP_OP_GT 0x02
-#define CMP_OP_LE 0x03
-#define CMP_OP_GE 0x04
-
-void docmp(opcodepre_t prefix) {
-    switch(prefix.mode) {
-        case CMP_REGREG: {
-            uint8_t cmpmode = READ_BYTE();
-            uint8_t first = READ_BYTE();
-            uint8_t second = READ_BYTE();
-            switch(cmpmode) {
-                case CMP_OP_EQ: {
-                    vm.regs[REG_AX] = GET_REGISTER32(first) == GET_REGISTER32(second);
-                    break;
-                }
-                case CMP_OP_LT: {
-                    vm.regs[REG_AX] = GET_REGISTER32(first) < GET_REGISTER32(second);
-                    break;
-                }
-                case CMP_OP_GT: {
-                    vm.regs[REG_AX] = GET_REGISTER32(first) > GET_REGISTER32(second);
-                    break;
-                }
-                case CMP_OP_LE: {
-                    vm.regs[REG_AX] = GET_REGISTER32(first) <= GET_REGISTER32(second);
-                    break;
-                }
-                case CMP_OP_GE: {
-                    vm.regs[REG_AX] = GET_REGISTER32(first) >= GET_REGISTER32(second);
-                    break;
-                }
-                default:
-                    printf("Instruction attempted to use a CMP operation mode that doesn't exist! (code: 0x%02x)\n", cmpmode);
-                    exit(1);
-                    return;
-            }
-            break;
-        }
-        case CMP_REGDAT: {
-            uint8_t cmpmode = READ_BYTE();
-            uint8_t first = READ_BYTE();
-            uint32_t second = READ_BYTE32();
-            switch(cmpmode) {
-                case CMP_OP_EQ: {
-                    vm.regs[REG_AX] = GET_REGISTER32(first) == second;
-                    break;
-                }
-                case CMP_OP_LT: {
-                    vm.regs[REG_AX] = GET_REGISTER32(first) < second;
-                    break;
-                }
-                case CMP_OP_GT: {
-                    vm.regs[REG_AX] = GET_REGISTER32(first) > second;
-                    break;
-                }
-                case CMP_OP_LE: {
-                    vm.regs[REG_AX] = GET_REGISTER32(first) <= second;
-                    break;
-                }
-                case CMP_OP_GE: {
-                    vm.regs[REG_AX] = GET_REGISTER32(first) >= second;
-                    break;
-                }
-                default:
-                    printf("Instruction attempted to use a CMP operation mode that doesn't exist! (code: 0x%02x)\n", cmpmode);
-                    exit(1);
-                    return;
-            }
-            break;
-        }
-        case CMP_DATDAT: {
-            uint8_t cmpmode = READ_BYTE();
-            uint32_t first = READ_BYTE32();
-            uint32_t second = READ_BYTE32();
-            switch(cmpmode) {
-                case CMP_OP_EQ: {
-                    vm.regs[REG_AX] = first == second;
-                    break;
-                }
-                case CMP_OP_LT: {
-                    vm.regs[REG_AX] = first < second;
-                    break;
-                }
-                case CMP_OP_GT: {
-                    vm.regs[REG_AX] = first > second;
-                    break;
-                }
-                case CMP_OP_LE: {
-                    vm.regs[REG_AX] = first <= second;
-                    break;
-                }
-                case CMP_OP_GE: {
-                    vm.regs[REG_AX] = first >= second;
-                    break;
-                }
-                default:
-                    printf("Instruction attempted to use a CMP operation mode that doesn't exist! (code: 0x%02x)\n", cmpmode);
-                    exit(1);
-                    return;
-            }
-            break;
-        }
-        case CMP_DATREG: {
-            uint8_t cmpmode = READ_BYTE();
-            uint32_t first = READ_BYTE32();
-            uint8_t second = READ_BYTE();
-            switch(cmpmode) {
-                case CMP_OP_EQ: {
-                    vm.regs[REG_AX] = first == GET_REGISTER32(second);
-                    break;
-                }
-                case CMP_OP_LT: {
-                    vm.regs[REG_AX] = first < GET_REGISTER32(second);
-                    break;
-                }
-                case CMP_OP_GT: {
-                    vm.regs[REG_AX] = first > GET_REGISTER32(second);
-                    break;
-                }
-                case CMP_OP_LE: {
-                    vm.regs[REG_AX] = first <= GET_REGISTER32(second);
-                    break;
-                }
-                case CMP_OP_GE: {
-                    vm.regs[REG_AX] = first >= GET_REGISTER32(second);
-                    break;
-                }
-                default:
-                    printf("Instruction attempted to use a CMP operation mode that doesn't exist! (code: 0x%02x)\n", cmpmode);
-                    exit(1);
-                    return;
-            }
-            break;
-        }
-        default:
-            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
-            exit(1);
-            return;
-    }
-}*/
 
 #define CMP_REGREG 0x00
 #define CMP_REGPTR 0x01
@@ -477,72 +314,48 @@ void docmp(opcodepre_t prefix) {
         case CMP_REGREG: {
             uint8_t reg1 = READ_BYTE();
             uint8_t reg2 = READ_BYTE();
-//            printf("cmp 0x%02x, 0x%02x\n", reg1, reg2);
             value1 = GET_REGISTER32(reg1);
             value2 = GET_REGISTER32(reg2);
-//            printf("cmp 0x%08x, 0x%08x\n", value1, value2);
             break;
         }
         case CMP_REGPTR: {
             value1 = GET_REGISTER32(READ_BYTE());
             value2 = GET_PTR(READ_PTR());
-//            if(check != 0)
-//                vm.regs[REG_IP] = GET_REGISTER32(location);
             break;
         }
         case CMP_REGDAT: {
             value1 = GET_REGISTER32(READ_BYTE());
             value2 = READ_BYTE32();
-//            if(check != 0)
-//                vm.regs[REG_IP] = GET_REGISTER32(location);
             break;
         }
         case CMP_PTRREG: {
             value1 = GET_PTR(READ_PTR());
             value2 = GET_REGISTER32(READ_BYTE());
-//            if(GET_REGISTER32(check) != 0)
-//                vm.regs[REG_IP] = location;
             break;
         }
         case CMP_PTRPTR: {
             value1 = GET_PTR(READ_PTR());
             value2 = GET_PTR(READ_PTR());
-
-//            if(check != 0)
-//                vm.regs[REG_IP] = location;
             break;
         }
         case CMP_PTRDAT: {
             value1 = GET_PTR(READ_PTR());
             value2 = READ_BYTE32();
-
-//            if(check != 0)
-//                vm.regs[REG_IP] = location;
             break;
         }
         case CMP_DATDAT: {
             value1 = READ_BYTE32();
             value2 = READ_BYTE32();
-            printf("cmp %u, %u\n", value1, value2);
-
-//            if(check != 0)
-//                vm.regs[REG_IP] = location;
             break;
         }
         case CMP_DATPTR: {
             value1 = READ_BYTE32();
             value2 = GET_PTR(READ_PTR());
-
-//            if(check != 0)
-//                vm.regs[REG_IP] = location;
             break;
         }
         case CMP_DATREG: {
             value1 = READ_BYTE32();
             value2 = GET_REGISTER32(READ_BYTE());
-
-//            if(GET_REGISTER32(check) != 0)
-//                vm.regs[REG_IP] = location;
             break;
         }
         default:
@@ -1061,8 +874,6 @@ void dotest(opcodepre_t prefix) {
                 SET_FLAG(FLAG_SF, 0);
                 SET_FLAG(FLAG_ZF, 0);
             }
-
-//            vm.regs[first] &= vm.regs[second];
             break;
         }
         case TEST_REGPTR: {
@@ -1079,7 +890,6 @@ void dotest(opcodepre_t prefix) {
                 SET_FLAG(FLAG_SF, 0);
                 SET_FLAG(FLAG_ZF, 0);
             }
-//            vm.regs[first] &= second;
             break;
         }
         case TEST_REGDAT: {
@@ -1098,7 +908,6 @@ void dotest(opcodepre_t prefix) {
                 SET_FLAG(FLAG_SF, 0);
                 SET_FLAG(FLAG_ZF, 0);
             }
-//            vm.regs[first] &= second;
             break;
         }
         case TEST_PTRPTR: {
@@ -1115,7 +924,6 @@ void dotest(opcodepre_t prefix) {
                 SET_FLAG(FLAG_SF, 0);
                 SET_FLAG(FLAG_ZF, 0);
             }
-//            SET_PTR(first, GET_PTR(first) & second);
             break;
         }
         case TEST_PTRREG: {
@@ -1132,7 +940,6 @@ void dotest(opcodepre_t prefix) {
                 SET_FLAG(FLAG_SF, 0);
                 SET_FLAG(FLAG_ZF, 0);
             }
-//            SET_PTR(first, GET_PTR(first) & GET_REGISTER32(second));
             break;
         }
         case TEST_PTRDAT: {
@@ -1150,8 +957,6 @@ void dotest(opcodepre_t prefix) {
                 SET_FLAG(FLAG_SF, 0);
                 SET_FLAG(FLAG_ZF, 0);
             }
-
-//            SET_PTR(first, GET_PTR(first) & second);
             break;
         }
         default:

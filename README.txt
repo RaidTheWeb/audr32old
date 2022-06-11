@@ -1,7 +1,27 @@
 # Audr32 (Audrey) CPU
 
-A 32 bit CPU I've been working on for a bit, trying to make it run its own Operating System written in C or something.
-Audr32 is inspired by other ISAs like x86 (mostly x86), limn2600, and jdh8.
+Audr32 or Audrey, is a little 32-bit CPU I've been working on that I wish to make an operating system for sometime in the future. Audr32 supports a lot of essential features like:
+    - Proper address mapping (See memory maps in vm/src/ISA.txt)
+    - Pointers
+    - Interrupts
+    - I/O (Clock, Keyboard, Screen, Disk Drives)
+
+Roadmap:
+
+    - [X] Proper cycle operations
+    - [X] Interrupts
+    - [X] Basic memory mapping
+    - [X] Screen
+    - [X] Keyboard
+    - [X] Proper address mapping
+    - [X] Clock (For interval based interrupts and keeping time)
+    - [X] Disk image loading
+    - [-] Disk services interrupts
+    - [ ] BIOS Firmware
+    - [ ] Move interrupts to BIOS instead of embedding directly(?)
+    - [ ] Basic game (inspired by my calculator programming)
+    - [ ] Operating System and subsequentally a bootloader.
+
 
 ## Building
 

@@ -46,8 +46,12 @@ void clock_tick(uint32_t dt) {
     if(intervalcounter >= intervalms) {
         void interrupt_trigger(uint16_t from, uint16_t to);
 
+        interrupt_trigger(0, 0x03);
+
         intervalcounter -= intervalms;
     }
+    busregs[0x04] = modified ? curtimems: curtime; // CLOCKCURTIME
+    busregs[0x05] = intervalms; // CLOCKINTERVAL
 }
 
 static void clock_writemod(uint16_t port, uint32_t data) {
@@ -136,6 +140,7 @@ static uint32_t clock_readcmd(uint16_t port) {
 
 void init_clock(void) {
     time(&curtime); // initialise clock
+    busregs[0x06] = curtime; // CLOCKSTARTTIME
     
     vm.ports[0x40].set = 1;
     vm.ports[0x40].read = clock_readmod;

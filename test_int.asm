@@ -1,4 +1,0 @@
-mov r10, 0x07
-mov dx, 69420
-mov bx, 0x0F00
-int 0x10

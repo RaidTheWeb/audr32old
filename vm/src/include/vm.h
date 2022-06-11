@@ -8,16 +8,18 @@
 #include "io.h"
 
 /** Address locations */
+#define ADDR_BUSREGISTERS       0x000002F5 // various bits of information about devices on the bus (about 10 slots)
+#define ADDR_BUSREGISTERSEND    0x000002FF
 #define ADDR_FRAMEBUFFER        0x00000300
-#define ADDR_FRAMEBUFFEREND     0x0012c300
+#define ADDR_FRAMEBUFFEREND     0x0012C300
 #define ADDR_STACKRAM           0x00130000
 #define ADDR_STACKRAMEND        0x0032FFFB
 #define ADDR_RAM                0x00330000 // RAM starts just as stack ends
 #define ADDR_RAMEND             0x4032FFFB // Accounts for full 1GB maximum
 #define ADDR_ROM                0x40330000 // ROM starts just as RAM ends
 #define ADDR_ROMEND             0x4033FFFF // Accounts for full 64KB of allocated ROM space
-#define ADDR_BLOCKBUF           0x40340000 // Block buffer (512 bytes)
-#define ADDR_BLOCKBUFEND        0x40340200
+#define ADDR_SECTORCACHE        0x40340000 // Block buffer (512 bytes)
+#define ADDR_SECTORCACHEEND     0x40340200
 
 
 #define MAX_REGS                25
@@ -30,18 +32,26 @@ struct VM {
 
     size_t datalength;
     uint32_t ip;
-    
-    uint32_t curstack; // debug
+
+    uint8_t running;
+    uint8_t halted; // are we suspending execution right now?
+    uint8_t curexception; // current exception
+    uint8_t interruptpending; // is an interrupt pending right now?
 
     uint32_t regs[MAX_REGS + 1]; // registers
     uint8_t flags; // flags
+
+    char **drives;
+    int drivenum;
 
     device_t devices[MAX_PORTS];
     port_t ports[MAX_PORTS];
 };
 
 extern struct VM vm;
+extern uint32_t busregs[10];
 
+extern uint32_t optip;
 extern size_t optramsize;
 extern char *optbootrom;
 extern char *optramimage;
@@ -50,6 +60,12 @@ typedef struct {
     uint8_t instruction;
     uint8_t mode;
 } opcodepre_t;
+
+enum {
+    EXC_BUSERROR        =           0x01,           // bus operation failed
+    EXC_BADADDR         =           0x02,           // attempted to access a illegal address
+    EXC_BADINST         =           0x03            // attempted to interpret an instruction that does not exist
+};
 
 enum {
     FLAG_CF             =           0x00,           // Carry flag
@@ -168,9 +184,6 @@ void cpu_writebyte(uint32_t addr, uint32_t value);
 void cpu_writeword(uint32_t addr, uint32_t value);
 void cpu_writedword(uint32_t addr, uint32_t value);
 
-// #define READ_BYTE() (uint8_t)vm.memory[vm.regs[REG_IP]++]
-// #define READ_BYTE16() (uint16_t)((READ_BYTE() << 8) | READ_BYTE())
-// #define READ_BYTE32() (uint32_t)((READ_BYTE16() << 16) + READ_BYTE16())
 #define READ_BYTE() (uint8_t)cpu_readbyte(vm.regs[REG_IP]++)
 #define READ_BYTE16() (uint16_t)cpu_readword((vm.regs[REG_IP] += 2) - 2)
 #define READ_BYTE32() (uint32_t)cpu_readdword((vm.regs[REG_IP] += 4) - 4)
@@ -214,6 +227,6 @@ void SET_REGISTER(uint8_t reg, registeruni_t value);
 #define GET_REGISTER32(reg) ((uint32_t)vm.regs[reg])
 #define VALID_REGISTER(reg) (reg <= (MAX_REGS))
 
-void run(uint32_t ramsize, char **drives, int drivenum);
+void run(uint32_t ramsize);
 
 #endif

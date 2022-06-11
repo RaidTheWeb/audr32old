@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "bus.h"
-#include "drive.h"
+#include "disk.h"
 #include "interrupts.h"
 
 typedef struct {
@@ -35,48 +35,48 @@ static void drive_info(int dinfo, int ddetails) {
     if(dointerrupt) interrupt_trigger(0, 0x0E);
 }
 
-uint8_t blockbuffer[512];
+uint8_t sectorcache[512]; // 512-byte sector cache
 
 enum {
-    DRIVE_SELDRIVE,
-    DRIVE_READBLK,
-    DRIVE_WRITEBLK,
-    DRIVE_INFO,
-    DRIVE_POLL,
-    DRIVE_DOINT,
-    DRIVE_DONTINT
+    DISK_SELDRIVE,
+    DISK_READBLK,
+    DISK_WRITEBLK,
+    DISK_INFO,
+    DISK_POLL,
+    DISK_DOINT,
+    DISK_DONTINT
 };
 
 static void drive_writecmd(uint16_t port, uint32_t value) {
     switch(value) {
-        case DRIVE_SELDRIVE: {
+        case DISK_SELDRIVE: {
             if((moda < DRIVES) && (drives[moda].set)) seldrive = &drives[moda];
             else seldrive = 0;
             break;
         }
-        case DRIVE_READBLK: {
+        case DISK_READBLK: {
             if(!seldrive) break;
             if(moda >= seldrive->blocks) break;
 
             fseek(seldrive->image, moda * 512, SEEK_SET); // seek to block
-            fread(&blockbuffer, 512, 1, seldrive->image);
+            fread(&sectorcache, 512, 1, seldrive->image);
             drive_info(0, moda);
             break;
         }
-        case DRIVE_WRITEBLK: {
+        case DISK_WRITEBLK: {
             if(!seldrive) break;
             if(moda >= seldrive->blocks) break;
             
             fseek(seldrive->image, moda * 512, SEEK_SET);
-            fwrite(&blockbuffer, 512, 1, seldrive->image);
+            fwrite(&sectorcache, 512, 1, seldrive->image);
             drive_info(0, moda);
             break;
         }
-        case DRIVE_INFO:
+        case DISK_INFO:
             moda = info;
             modb = details;
             break;
-        case DRIVE_POLL: {
+        case DISK_POLL: {
             if((moda < DRIVES) && (drives[moda].set)) {
                 modb = drives[moda].blocks;
                 moda = 1;
@@ -86,10 +86,10 @@ static void drive_writecmd(uint16_t port, uint32_t value) {
             }
             break;
         }
-        case DRIVE_DOINT:
+        case DISK_DOINT:
             dointerrupt = 1;
             break;
-        case DRIVE_DONTINT:
+        case DISK_DONTINT:
             dointerrupt = 0;
             break;
     }
@@ -116,28 +116,28 @@ static uint32_t drive_readb(uint16_t port) {
 }
 
 
-void write_blockbuf(uint32_t addr, uint32_t type, uint32_t value) {
+void write_sectorcache(uint32_t addr, uint32_t type, uint32_t value) {
     switch(type) {
         case BUS_BYTE:
-            write_byte(blockbuffer, addr, value);
+            write_byte(sectorcache, addr, value);
             break;
         case BUS_WORD:
-            write_word(blockbuffer, addr, value);
+            write_word(sectorcache, addr, value);
             break;
         case BUS_DWORD:
-            write_dword(blockbuffer, addr, value);
+            write_dword(sectorcache, addr, value);
             break;
     }
 }
 
-uint32_t read_blockbuf(uint32_t addr, uint32_t type) {
+uint32_t read_sectorcache(uint32_t addr, uint32_t type) {
     switch(type) {
         case BUS_BYTE:
-            return read_byte(blockbuffer, addr);
+            return read_byte(sectorcache, addr);
         case BUS_WORD:
-            return read_word(blockbuffer, addr);
+            return read_word(sectorcache, addr);
         case BUS_DWORD:
-            return read_dword(blockbuffer, addr);
+            return read_dword(sectorcache, addr);
     }
     return 0;
 }
@@ -154,12 +154,12 @@ static void drive_handleint(void) {
             // dx: destination address
 
             drive_writea(0, vm.regs[REG_AX]); // select drive
-            drive_writecmd(0, DRIVE_SELDRIVE); // ^
+            drive_writecmd(0, DISK_SELDRIVE); // ^
             drive_writea(0, vm.regs[REG_DX]); // select sector
-            drive_writecmd(0, DRIVE_READBLK); // read a sector
+            drive_writecmd(0, DISK_READBLK); // read a sector
             
             for(uint32_t start = 0; start < 512; start++) { // write 512 bytes
-                cpu_writebyte(start + vm.regs[REG_BX], blockbuffer[start]);
+                cpu_writebyte(start + vm.regs[REG_BX], sectorcache[start]);
             }
             break;
         }
@@ -197,6 +197,7 @@ int drive_attachimage(char *drivepath) {
 
     printf("%s loaded as drive %d containing about %d blocks of 512\n", drivepath, drive->id, drive->blocks);
 
+    busregs[0x01]++; // DISKNUM
     return 1;
 }
 

@@ -517,7 +517,7 @@ static void videoservice_handleint(void) {
            
             if(busregs[0x03] == 0x16161616) {
                 char c = vm.regs[REG_DX];
-                if(charx >= WINDOW_WIDTH || c == 0x0A) {
+                if(charx > (WINDOW_WIDTH - (bitmap_font_width * 2)) || c == 0x0A) {
                     chary += bitmap_font_height;
                     charx = -bitmap_font_width;
                     if(c == 0x0A) return;

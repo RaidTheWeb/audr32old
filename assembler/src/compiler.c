@@ -194,7 +194,7 @@ static void parsesymbol(struct Parser *parser, struct Lexer *lexer) {
     labelmapent_t *label = labelmapget(labels, labeltok.text);
     if(!(label == NULL)) {
         emitbyte32(&emitter, label->value); // emit label
-        // printf("predefined label location: 0x%08x\n", label->value);
+        printf("predefined label location: 0x%08x\n", label->value);
     } else {
         // printf("reference to a label that doesn't exist.\n");
         uint32_t current = emitter.written;
@@ -1701,12 +1701,13 @@ void compilefile(char *buffer) {
     }
 }
 
-int compiler(char *buffer, char *output, uint32_t offset) {
+int compiler(char *buffer, char *output, uint32_t offset, uint32_t basesize) {
 
     job.outputfile = output;
     
     initemitter(&emitter, output);
     emitter.offset = offset;
+    emitter.basesize = basesize;
     labels = labelmapcreate();
     
     compilefile(buffer);
@@ -1724,7 +1725,7 @@ int compiler(char *buffer, char *output, uint32_t offset) {
                     relocatebyte16(&emitter, loc, labelloc);
                     break;
                 case 0x03: // 32 bit
-                    // printf("relocating %s to 0x%08x at 0x%08x...\n", relocatables[i]->symbol, label->value, loc);
+                    printf("relocating %s to 0x%08x at 0x%08x...\n", relocatables[i]->symbol, label->value, loc);
                     relocatebyte32(&emitter, loc, labelloc);
                     break;
             }

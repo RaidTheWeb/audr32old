@@ -13,6 +13,8 @@ uint32_t busregs[10]; // bus registers
 
 void write_fb(uint32_t, uint32_t, uint32_t);
 uint32_t read_fb(uint32_t, uint32_t);
+void write_textmode(uint32_t, uint32_t, uint32_t);
+uint32_t read_textmode(uint32_t, uint32_t);
 
 void write_rom(uint32_t addr, uint32_t type, uint32_t value) {
     switch(type) {
@@ -92,6 +94,9 @@ int write_bus(uint32_t addr, uint32_t type, uint32_t value) {
     } else if(addr >= ADDR_FRAMEBUFFER && addr < ADDR_FRAMEBUFFEREND) {
         addr -= ADDR_FRAMEBUFFER;
         write_fb(addr, type, value);
+    } else if(addr >= ADDR_TEXTBUFFER && addr < ADDR_TEXTBUFFEREND) {
+        addr -= ADDR_TEXTBUFFER;
+        write_textmode(addr, type, value);
     } else if(addr >= ADDR_ROM && addr < ADDR_ROMEND) {
         // it's read only (maybe throw an illegal memory access exception)
         return 1;
@@ -112,6 +117,9 @@ int read_bus(uint32_t addr, uint32_t type, uint32_t *value) {
     } else if(addr >= ADDR_FRAMEBUFFER && addr < ADDR_FRAMEBUFFEREND) {
         addr -= ADDR_FRAMEBUFFER;
         *value = read_fb(addr, type);
+    } else if(addr >= ADDR_TEXTBUFFER && addr < ADDR_TEXTBUFFEREND) {
+        addr -= ADDR_TEXTBUFFER;
+        *value = read_textmode(addr, type);
     } else if(addr >= ADDR_ROM && addr < ADDR_ROMEND) {
         addr -= ADDR_ROM;
         *value = read_rom(addr, type);

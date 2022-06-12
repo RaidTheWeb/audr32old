@@ -124,6 +124,7 @@ R15                             - Generic 32 bit register
 0x005A                          - Drive Data A
 0x005B                          - Drive Data B
 0x0060                          - Power Management Controller CMD
+0x0070                          - Video Data Mode
 
 ## Interrupts: (8 bit integer)
 
@@ -139,12 +140,19 @@ OUTX 0x003B, memoryaddress (`memoryaddress` being the location of the first byte
 0x03                            - Clock Interval Event
 0x04                            - Serial Event
 0x05                            - Disk Drive Services
-    - R10=0x01                  - Load sector
+    - R10=0x01                  - Load Sector
         - AX                    - Drive Number
         - BX                    - Destination Address
         - DX                    - Sector Number
         Returns:
             - DX                - Destination Address
+    - R10=0x02                  - Load Multiple sectors
+        - AX                    - Drive Number
+        - BX                    - Destination Start Address
+        - DX                    - Start Sector
+        - CX                    - Sector Count
+        Returns:
+            - DX                - Destination Start Address
 0x10                            - Video Services
     - R10=0x01                  - Draw character (Teletype)
         - DX                    - Character

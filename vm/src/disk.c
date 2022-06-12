@@ -146,6 +146,38 @@ static void drive_handleint(void) {
     uint32_t mode = vm.regs[REG_R10];
 
     switch(mode) {
+        case 0x02: { // load number of sectors
+            // ax: drive num
+            // bx: destination address
+            // dx: sector start
+            // cx: sector count
+            // returns:
+            // dx: destination address
+
+            drive_writea(0, vm.regs[REG_AX]); // select drive
+            drive_writecmd(0, DISK_SELDRIVE); // ^
+
+            uint32_t sectorc = vm.regs[REG_CX]; // number of sectors
+            uint32_t sector = vm.regs[REG_DX]; // first sector
+            uint32_t addr = vm.regs[REG_BX]; // start address
+            
+readloop:
+            drive_writea(0, sector); // select sector
+            drive_writecmd(0, DISK_READBLK); // read a sector
+            
+            uint32_t start = 0;
+            for(; start < 512; start++) { // read this entire sector into memory
+                cpu_writebyte(addr++, sectorcache[start]);
+            }
+
+            if(sector == sectorc) {
+                break; //  stop reading in sectors now since we reached the user specified maximum
+            } else sector++;
+
+            goto readloop;
+
+            break;
+        }
         case 0x01: { // load sector at address
             // ax: drive num
             // bx: destination address

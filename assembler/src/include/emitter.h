@@ -10,6 +10,7 @@ struct Emitter {
     uint32_t written;
     uint32_t capacity;
     uint32_t offset;
+    uint32_t basesize;
 };
 
 void initemitter(struct Emitter *emitter, char *fullPath);

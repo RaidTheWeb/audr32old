@@ -136,111 +136,8 @@ void screen_destroy(device_t *dev) {
 
 static uint32_t *framebuffer = 0; // actual framebuffer turned into an SDL texture later;
 static uint8_t *backbuffer = 0; // memory mapped framebuffer
-
-void kbd_set_data(device_t *dev, uint8_t scancode);
-
-void io_remove_device(uint16_t id);
-
-void screen_set_title(const char *title) {
-    SDL_SetWindowTitle(window, title);
-}
-
-static void screen_tick(device_t *dev) {
-    for(SDL_Event e; SDL_PollEvent(&e);) {
-        switch(e.type) {
-            case SDL_KEYDOWN:
-            case SDL_KEYUP:
-                kbd_set_data(&vm.devices[0x0001], (e.type == SDL_KEYUP ? 0x80 : 0x00) | keymap[e.key.keysym.scancode]);
-                break;
-            case SDL_QUIT:
-                screen_destroy(dev);
-                exit(1);
-                break;
-            default:
-                break;
-        }
-    }
-}
-
-void screen_blit(device_t *dev) {
-    size_t k = 0;
-    for(size_t i = 0; i < ADDR_FRAMEBUFFEREND; i+=4) { 
-        ptr_t pointer = {
-            .addr = ADDR_FRAMEBUFFER + i,
-            .ptrmode = 0x03 // 32 bit
-        };  
-        uint32_t data = GET_PTR(pointer);
-        framebuffer[k++] = data;
-    }
-
-    SDL_UpdateTexture(texture, NULL, framebuffer, WINDOW_WIDTH * sizeof(uint32_t));
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
-    SDL_RenderPresent(renderer);
-}
-
-static void setpixel(uint32_t x, uint32_t y, uint32_t colour) {
-    uint32_t index = x * (32/8) +
-        y * (WINDOW_WIDTH*(32/8));
-    ptr_t pointer = {
-        .addr = ADDR_FRAMEBUFFER + index,
-        .ptrmode = 0x03
-    };
-    SET_PTR(pointer, colour);
-}
-
-static void drawrect(uint32_t offsetx, uint32_t offsety, uint32_t w, uint32_t h, uint32_t colour) {
-    for(uint32_t y = offsety; y <= (offsety + h); y++) {
-        for(uint32_t x = offsetx; x <= (offsetx + w); x++) {
-            setpixel(x, y, colour);
-        }
-    }
-}
-
-static void drawcircle(uint32_t offsetx, uint32_t offsety, uint32_t r, uint32_t colour) {
-    int radiusSquared = r * r;
-	
-	int minX = ((offsetx >= r) ? (offsetx -r) : 0), maxX = (offsetx + r);
-	if(maxX > WINDOW_WIDTH)
-		maxX = WINDOW_WIDTH - 1;
-	int minY = ((offsety >= r) ? (offsety -r) : 0), maxY = (offsety +r);
-	if(maxY > WINDOW_HEIGHT)
-		maxY = WINDOW_HEIGHT -1;
-	
-	for(int currY = minY; currY <= maxY; currY++)
-	{
-		for(int currX = minX; currX <= maxX; currX++)
-		{
-			if(radiusSquared > ((currX-offsetx)*(currX-offsetx)+(currY-offsety)*(currY-offsety)))
-				setpixel( currX, currY, colour);
-		}
-	}
-}
-
-#define bit_test(var, offset) ({ \
-    int __ret; \
-    __ret = (var >> (offset)); \
-    __ret & 1; \
-})
-
-static uint8_t *font;
-
-static void drawchar(char c, int x, int y, uint32_t hex_fg, uint32_t hex_bg) {
-    int orig_x = x;
-    uint8_t *glyph = &font[c * bitmap_font_height];
-
-    for (int i = 0; i < bitmap_font_height; i++) {
-        for (int j = bitmap_font_width - 1; j >= 0; j--) {
-            setpixel(x++, y, bit_test(glyph[i], j) ? hex_fg : hex_bg);
-        }
-        y++;
-        x = orig_x;
-    } 
-
-    return;
-}
+static uint8_t *textbackbuffer = 0; // memory mapped text mode buffer
+static uint8_t *textmodeframebuffer = 0; // actual framebuffer for the backend
 
 static uint32_t colours[0xF + 1] = {
     0x00000000, // black
@@ -274,6 +171,170 @@ static uint32_t parsebg(uint32_t colour) {
     return colours[bg];
 }
 
+void kbd_set_data(device_t *dev, uint8_t scancode);
+
+void io_remove_device(uint16_t id);
+
+void screen_set_title(const char *title) {
+    SDL_SetWindowTitle(window, title);
+}
+
+static void screen_tick(device_t *dev) {
+    for(SDL_Event e; SDL_PollEvent(&e);) {
+        switch(e.type) {
+            case SDL_KEYDOWN:
+            case SDL_KEYUP:
+                kbd_set_data(&vm.devices[0x0001], (e.type == SDL_KEYUP ? 0x80 : 0x00) | keymap[e.key.keysym.scancode]);
+                break;
+            case SDL_QUIT:
+                screen_destroy(dev);
+                exit(1);
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+#define bit_test(var, offset) ({ \
+    int __ret; \
+    __ret = (var >> (offset)); \
+    __ret & 1; \
+})
+
+static uint8_t *font;
+
+static void setpixeltext(uint32_t x, uint32_t y, uint32_t colour) {
+    uint32_t index = x * (32/8) +
+        y * (WINDOW_WIDTH*(32/8));
+    write_dword(textmodeframebuffer, index, colour);
+}
+
+static void drawchartext(char c, int x, int y, uint32_t hex_fg, uint32_t hex_bg) { 
+    int orig_x = x;
+    uint8_t *glyph = &font[c * bitmap_font_height];
+
+    for (int i = 0; i < bitmap_font_height; i++) {
+        for (int j = bitmap_font_width - 1; j >= 0; j--) {
+            setpixeltext(x++, y, bit_test(glyph[i], j) ? hex_fg : hex_bg);
+        }
+        y++;
+        x = orig_x;
+    } 
+
+    return;
+}
+
+void screen_blit(device_t *dev) {
+    if(busregs[0x03] == 0x16161616) {
+        size_t k = 0;
+        for(size_t i = 0; i < ADDR_FRAMEBUFFEREND - ADDR_FRAMEBUFFER; i += 4) {
+            uint32_t data = cpu_readdword(ADDR_FRAMEBUFFER + i);
+            framebuffer[k++] = data;
+        }
+    } else if(busregs[0x03] == 0xEFEFEFEF) {
+        /*size_t chri = 0;
+        for(size_t i = 0; i < ADDR_TEXTBUFFEREND - ADDR_TEXTBUFFER;) {
+            uint8_t chr = cpu_readbyte(ADDR_TEXTBUFFER + i);
+            // printf("iter 0x%08x 0x%02x\n", ADDR_TEXTBUFFER + i, textbackbuffer[i]);
+            if(!isprint(chr)) {
+                chri++;
+                i += 3;
+                continue;
+            } else {
+                printf("%c\n", chr);
+                uint16_t colour = cpu_readword(ADDR_TEXTBUFFER + i + 1);
+                int row = chri / 80;
+                int column = chri % 80;
+                printf("%dx%d\n", column, row);
+                drawchartext(chr, column * bitmap_font_width, row * bitmap_font_height, parsefg(colour), parsebg(colour));
+                chri++;
+                i += 3;
+            }
+        }*/
+        
+        for(size_t row = 0; row < (WINDOW_HEIGHT / bitmap_font_height); row++) {
+            for(size_t column = 0; column < (WINDOW_WIDTH / bitmap_font_width); column++) {
+                uint32_t addr = ADDR_TEXTBUFFER + (row * ((WINDOW_WIDTH / bitmap_font_width) * 3)) + column * 3;
+                uint8_t chr = cpu_readbyte(addr);
+                uint16_t colour = cpu_readword(addr + 1);
+
+                if(isprint(chr)) drawchartext(chr, column * bitmap_font_width, row * bitmap_font_height, parsefg(colour), parsebg(colour));
+            }
+        } 
+
+        size_t k = 0;
+        for(size_t i = 0; i < WINDOW_WIDTH * WINDOW_HEIGHT * 4; i += 4) {
+            framebuffer[k++] = read_dword(textmodeframebuffer, i);
+        }
+    }
+
+    SDL_UpdateTexture(texture, NULL, framebuffer, WINDOW_WIDTH * sizeof(uint32_t));
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+}
+
+static void setpixel(uint32_t x, uint32_t y, uint32_t colour) {
+    uint32_t index = x * (32/8) +
+        y * (WINDOW_WIDTH*(32/8));
+    cpu_writedword(ADDR_FRAMEBUFFER + index, colour); 
+}
+
+static void drawrect(uint32_t offsetx, uint32_t offsety, uint32_t w, uint32_t h, uint32_t colour) {
+    for(uint32_t y = offsety; y <= (offsety + h); y++) {
+        for(uint32_t x = offsetx; x <= (offsetx + w); x++) {
+            setpixel(x, y, colour);
+        }
+    }
+}
+
+static void drawrectall(uint32_t offsetx, uint32_t offsety, uint32_t w, uint32_t h, uint32_t colour) {
+    for(uint32_t y = offsety; y <= (offsety + h); y++) {
+        for(uint32_t x = offsetx; x <= (offsetx + w); x++) {
+            setpixel(x, y, colour);
+            setpixeltext(x, y, colour);
+        }
+    }
+}
+
+static void drawcircle(uint32_t offsetx, uint32_t offsety, uint32_t r, uint32_t colour) {
+    int radiusSquared = r * r;
+	
+	int minX = ((offsetx >= r) ? (offsetx -r) : 0), maxX = (offsetx + r);
+	if(maxX > WINDOW_WIDTH)
+		maxX = WINDOW_WIDTH - 1;
+	int minY = ((offsety >= r) ? (offsety -r) : 0), maxY = (offsety +r);
+	if(maxY > WINDOW_HEIGHT)
+		maxY = WINDOW_HEIGHT -1;
+	
+	for(int currY = minY; currY <= maxY; currY++)
+	{
+		for(int currX = minX; currX <= maxX; currX++)
+		{
+			if(radiusSquared > ((currX-offsetx)*(currX-offsetx)+(currY-offsety)*(currY-offsety)))
+				setpixel( currX, currY, colour);
+		}
+	}
+}
+
+static void drawchar(char c, int x, int y, uint32_t hex_fg, uint32_t hex_bg) {
+    int orig_x = x;
+    uint8_t *glyph = &font[c * bitmap_font_height];
+
+    for (int i = 0; i < bitmap_font_height; i++) {
+        for (int j = bitmap_font_width - 1; j >= 0; j--) {
+            setpixel(x++, y, bit_test(glyph[i], j) ? hex_fg : hex_bg);
+        }
+        y++;
+        x = orig_x;
+    } 
+
+    return;
+}
+
 static void printchar(char c) {
     if(charx >= WINDOW_WIDTH || c == 0x0A) {
         chary += bitmap_font_height;
@@ -295,12 +356,31 @@ static void printchar(char c) {
     drawchar(c, charx += bitmap_font_width, chary, parsefg(vm.regs[REG_BX]), parsebg(vm.regs[REG_BX]));
 }
 
+static uint32_t video_readmode(uint16_t port) {
+    return busregs[0x03];
+}
+
+static void video_writemode(uint16_t port, uint32_t data) {
+    drawrectall(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0x0000);
+    screen_blit(&vm.devices[0x03]);
+    busregs[0x03] = data; 
+}
+
 static void videoservice_handleint(void) {
     uint8_t mode = vm.regs[REG_R10];
     switch(mode) {
+        case 0x08: { // SWITCH MODE
+            // dx: mode
+            drawrect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0x0000);
+            screen_blit(&vm.devices[0x03]);
+            busregs[0x03] = vm.regs[REG_DX]; 
+            break;
+        }
         case 0x07: { // PRINT INTEGER
             // dx: number
             // bx: colour
+            
+            if(busregs[0x03] != 0x16161616) break;
            
             uint32_t c = vm.regs[REG_DX];
             char buf[64];
@@ -315,12 +395,15 @@ static void videoservice_handleint(void) {
             // bx: colour index
             // returns:
             // dx: AARRGGBB colour
+
             vm.regs[REG_DX] = parsebg(vm.regs[REG_BX]);
             break;
         }
         case 0x05: { // SET TELETYPE POS
             // r8: column
             // r9: row
+
+            if(busregs[0x03] != 0x16161616) break;
             charx = vm.regs[REG_R8];
             chary = vm.regs[REG_R9];
             break;
@@ -329,11 +412,14 @@ static void videoservice_handleint(void) {
             // bx: colour index
             // r8: column
             // r9: row
+            if(busregs[0x03] != 0x16161616) break;
             setpixel(vm.regs[REG_R8], vm.regs[REG_R9], parsebg(vm.regs[REG_BX]));
             break;
         }
         case 0x03: { // CLEAR
             // bx: colour
+            charx = -bitmap_font_width;
+            chary = 0;
             drawrect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, parsebg(vm.regs[REG_BX]));
             break;
         }
@@ -343,41 +429,83 @@ static void videoservice_handleint(void) {
             // bx: colour index
             // r8: column
             // r9: row
-            uint32_t address = vm.regs[REG_SI]; // string source
-            if(vm.regs[REG_CX] != 0) { // length is set
-                size_t cursor = 0;
-                uint32_t x = 0;
-                uint32_t y = 0;
-                uint8_t byte = 0;
-                for(size_t i = 0; i < vm.regs[REG_CX]; i++) {
-                    byte = cpu_readbyte(address + cursor++); 
-                    if(byte == 0x0A) {
-                        x = 0;
-                        y += bitmap_font_height;
-                        continue;
+            if(busregs[0x03] == 0x16161616) {
+                uint32_t address = vm.regs[REG_SI]; // string source
+                if(vm.regs[REG_CX] != 0) { // length is set
+                    size_t cursor = 0;
+                    uint32_t x = 0;
+                    uint32_t y = 0;
+                    uint8_t byte = 0;
+                    for(size_t i = 0; i < vm.regs[REG_CX]; i++) {
+                        byte = cpu_readbyte(address + cursor++); 
+                        if(byte == 0x0A) {
+                            x = 0;
+                            y += bitmap_font_height;
+                            continue;
+                        }
+                        drawchar(byte, x + vm.regs[REG_R8], y + vm.regs[REG_R9], parsefg(vm.regs[REG_BX]), parsebg(vm.regs[REG_BX]));
+                        x += bitmap_font_width;
+                    } 
+                    charx = x + vm.regs[REG_R8] > 0 ? x + vm.regs[REG_R8] : -bitmap_font_width;
+                    chary = y + vm.regs[REG_R9];
+    
+                } else {
+                    size_t cursor = 0;
+                    uint32_t x = 0;
+                    uint32_t y = 0;
+                    uint8_t byte = 0;
+                    while((byte = cpu_readbyte(address + cursor++)) != 0) {
+                        if(byte == 0x0A) {
+                            x = 0;
+                            y += bitmap_font_height;
+                            continue;
+                        }
+                        drawchar(byte, x + vm.regs[REG_R8], y + vm.regs[REG_R9], parsefg(vm.regs[REG_BX]), parsebg(vm.regs[REG_BX]));
+                        x += bitmap_font_width;
                     }
-                    drawchar(byte, x + vm.regs[REG_R8], y + vm.regs[REG_R9], parsefg(vm.regs[REG_BX]), parsebg(vm.regs[REG_BX]));
-                    x += bitmap_font_width;
-                } 
-                charx = x + vm.regs[REG_R8] > 0 ? x + vm.regs[REG_R8] : -bitmap_font_width;
-                chary = y + vm.regs[REG_R9];
-
-            } else {
-                size_t cursor = 0;
-                uint32_t x = 0;
-                uint32_t y = 0;
-                uint8_t byte = 0;
-                while((byte = cpu_readbyte(address + cursor++)) != 0) {
-                    if(byte == 0x0A) {
-                        x = 0;
-                        y += bitmap_font_height;
-                        continue;
-                    }
-                    drawchar(byte, x + vm.regs[REG_R8], y + vm.regs[REG_R9], parsefg(vm.regs[REG_BX]), parsebg(vm.regs[REG_BX]));
-                    x += bitmap_font_width;
+                    charx = x + vm.regs[REG_R8] > 0 ? x + vm.regs[REG_R8] : -bitmap_font_width;
+                    chary = y + vm.regs[REG_R9];
                 }
-                charx = x + vm.regs[REG_R8] > 0 ? x + vm.regs[REG_R8] : -bitmap_font_width;
-                chary = y + vm.regs[REG_R9];
+            } else if(busregs[0x03] == 0xEFEFEFEF) {
+                uint32_t address = vm.regs[REG_SI]; // string source
+                if(vm.regs[REG_CX] != 0) { // length is set
+                    size_t cursor = 0;
+                    uint32_t index = 0;
+                    uint8_t byte = 0;
+                    uint32_t x = 0;
+                    uint32_t y = 0;
+                    for(size_t i = 0; i < vm.regs[REG_CX]; i++) {
+                        index = (y + vm.regs[REG_R9]) * ((640 / 8) * 3) + (x + vm.regs[REG_R8]) * 3;
+                        byte = cpu_readbyte(address + cursor++);
+                        if(byte == 0x0A) {
+                            x = 0;
+                            y++;
+                            continue;
+                        }
+                        cpu_writebyte(ADDR_TEXTBUFFER + index, byte);
+                        cpu_writeword(ADDR_TEXTBUFFER + index + 1, vm.regs[REG_BX]);
+                        // index += 3;
+                        x++;
+                    }
+                } else {
+                    size_t cursor = 0;
+                    uint32_t index = 0;
+                    uint8_t byte = 0;
+                    uint32_t x = 0;
+                    uint32_t y = 0;
+                    while((byte = cpu_readbyte(address + cursor++)) != 0) {
+                        index = (y + vm.regs[REG_R9]) * ((640 / 8) * 3) + (x + vm.regs[REG_R8]) * 3;
+                        if(byte == 0x0A) {
+                            x = 0;
+                            y++;
+                            continue;
+                        }
+                        cpu_writebyte(ADDR_TEXTBUFFER + index, byte);
+                        cpu_writeword(ADDR_TEXTBUFFER + index + 1, vm.regs[REG_BX]);
+                        // index += 3;
+                        x++;
+                    }
+                }
             }
             break;
         }
@@ -387,28 +515,88 @@ static void videoservice_handleint(void) {
             // dx: character
             // bx: colour
            
-            char c = vm.regs[REG_DX];
-            if(charx >= WINDOW_WIDTH || c == 0x0A) {
-                chary += bitmap_font_height;
-                charx = -bitmap_font_width;
-                if(c == 0x0A) return;
-            }
-            if(chary >= WINDOW_HEIGHT - bitmap_font_height) {
-                drawrect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, parsebg(0x0000)); // clear screen
-                chary = 0;
-                charx = -bitmap_font_width;
-            } else if(c == 0x08) {
-                drawrect(charx, chary, bitmap_font_width, bitmap_font_height, parsebg(vm.regs[REG_BX]));
-                charx -= bitmap_font_width;
-                if(charx < -bitmap_font_width) {
+            if(busregs[0x03] == 0x16161616) {
+                char c = vm.regs[REG_DX];
+                if(charx >= WINDOW_WIDTH || c == 0x0A) {
+                    chary += bitmap_font_height;
                     charx = -bitmap_font_width;
+                    if(c == 0x0A) return;
                 }
-                return;
-            } 
-            drawchar(c, charx += bitmap_font_width, chary, parsefg(vm.regs[REG_BX]), parsebg(vm.regs[REG_BX])); 
+                if(chary >= WINDOW_HEIGHT - bitmap_font_height) {
+                        drawrect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, parsebg(0x0000)); // clear screen
+                    chary = 0;
+                    charx = -bitmap_font_width;
+                } else if(c == 0x08) {
+                    drawrect(charx, chary, bitmap_font_width, bitmap_font_height, parsebg(vm.regs[REG_BX]));
+                    charx -= bitmap_font_width;
+                    if(charx < -bitmap_font_width) {
+                        charx = -bitmap_font_width;
+                    }
+                    return;
+                } 
+                drawchar(c, charx += bitmap_font_width, chary, parsefg(vm.regs[REG_BX]), parsebg(vm.regs[REG_BX])); 
+            } else if(busregs[0x03] == 0xEFEFEFEF) {
+                if(charx < 0) charx = 0; // case since zero start works in text mode
+                char c = vm.regs[REG_DX];
+                putc(c, stdout);
+                if(charx > (WINDOW_WIDTH / bitmap_font_width) - 1 || c == 0x0A) {
+                    chary++;
+                    charx = 0;
+                    if(c == 0x0A) return;
+                }
+                if(chary >= (WINDOW_HEIGHT / bitmap_font_height)) {
+                    for(uint32_t row = 0; row < (WINDOW_HEIGHT / bitmap_font_height); row++) {
+                        for(uint32_t column = 0; column < (WINDOW_WIDTH / bitmap_font_width); column++) {
+                            uint32_t addr = ADDR_TEXTBUFFER + (row * ((WINDOW_WIDTH / bitmap_font_width) * 3)) + column * 3;
+                            cpu_writebyte(addr, ' ');
+                            cpu_writeword(addr + 1, vm.regs[REG_BX]);                  
+                        }
+                    }
+
+                    chary = 0;
+                    charx = 0;
+                } else if(c == 0x08) {
+                    charx--;
+                    uint32_t addr = ADDR_TEXTBUFFER + (chary * ((640 / 8) * 3)) + charx * 3;
+                    cpu_writebyte(addr, ' ');
+                    cpu_writeword(addr + 1, vm.regs[REG_BX]);
+                    if(charx < 0) charx = 0;
+                    return;
+                }
+                uint32_t addr = ADDR_TEXTBUFFER + (chary * ((640 / 8) * 3)) + charx++ * 3;
+                cpu_writebyte(addr, c);
+                cpu_writeword(addr + 1, vm.regs[REG_BX]);
+            }
             break;
         }
     } 
+}
+
+void write_textmode(uint32_t addr, uint32_t type, uint32_t value) {
+    switch(type) {
+        case BUS_BYTE:
+            write_byte(textbackbuffer, addr, value);
+            break;
+        case BUS_WORD:
+            write_word(textbackbuffer, addr, value);
+            break;
+        case BUS_DWORD:
+            write_dword(textbackbuffer, addr, value);
+            break;
+    }
+}
+
+uint32_t read_textmode(uint32_t addr, uint32_t type) {
+    switch(type) {
+        case BUS_BYTE:
+            return read_byte(textbackbuffer, addr);
+        case BUS_WORD:
+            return read_word(textbackbuffer, addr);
+        case BUS_DWORD:
+            return read_dword(textbackbuffer, addr);
+    }
+
+    return 0;
 }
 
 void write_fb(uint32_t addr, uint32_t type, uint32_t value) {
@@ -441,6 +629,8 @@ uint32_t read_fb(uint32_t addr, uint32_t type) {
 void screen_init(void) {
     framebuffer = malloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4);
     backbuffer = malloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4);
+    textbackbuffer = malloc(80 * 30 * 3);
+    textmodeframebuffer = malloc(WINDOW_WIDTH * WINDOW_HEIGHT * 4);
     
     struct Device devcopy = {
         .id = (uint16_t)io_request_id(),
@@ -480,5 +670,9 @@ void screen_init(void) {
     };
     iotable.ioentries[VIDEOSERVICE] = videoservice;
 
-    busregs[0x03] = 0x16161616; // SCREENMODE (16 colour)
+    vm.ports[0x70].set = 1;
+    vm.ports[0x70].write = video_writemode;
+    vm.ports[0x70].read = video_readmode;
+
+    busregs[0x03] = 0xEFEFEFEF; // SCREENMODE (16 colour)
 }

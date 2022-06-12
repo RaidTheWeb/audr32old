@@ -9,7 +9,7 @@ typedef struct {
     uint32_t dataval;
     uint32_t dointerrupts;
     uint8_t lastchar;
-    uint8_t buffer[SERIALBUFFERSIZE];
+    uint32_t buffer[SERIALBUFFERSIZE];
     size_t transindex;
     size_t sendindex;
     uint32_t readbusy;
@@ -32,7 +32,7 @@ void serial_tick(uint32_t dt) {
         serialport_t *curport = &serialports[port];
 
         while(dt) {
-            if(curport->sendindex < curport->transindex) putchar(curport->buffer[curport->sendindex++]);
+            if(curport->sendindex < curport->transindex) printf("%u\n", curport->buffer[curport->sendindex++]);
             else break;
 
             if(curport->sendindex == curport->transindex) {

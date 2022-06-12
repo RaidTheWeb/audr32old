@@ -14,6 +14,6 @@ typedef struct {
 #define GROW_BUFFER(compilerjob) compilerjob.buffer = realloc(compilerjob.buffer, ++compilerjob.capacity)
 #define GROW_CAPACITY(capacity) (++capacity)
 
-int compiler(char *source, char *output, uint32_t offset);
+int compiler(char *source, char *output, uint32_t offset, uint32_t basesize);
 
 #endif

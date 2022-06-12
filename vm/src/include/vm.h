@@ -12,6 +12,8 @@
 #define ADDR_BUSREGISTERSEND    0x000002FF
 #define ADDR_FRAMEBUFFER        0x00000300
 #define ADDR_FRAMEBUFFEREND     0x0012C300
+#define ADDR_TEXTBUFFER         0x0012C400 // start of video text mode buffer
+#define ADDR_TEXTBUFFEREND      0x0012E020
 #define ADDR_STACKRAM           0x00130000
 #define ADDR_STACKRAMEND        0x0032FFFB
 #define ADDR_RAM                0x00330000 // RAM starts just as stack ends

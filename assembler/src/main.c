@@ -19,6 +19,7 @@ static void usage(char *prog) {
 int main(int argc, char **argv) {
     char *outfilename = "a.out";
     uint32_t offset = 0x40330000; // default offset is boot ROM
+    uint32_t basesize = 0;
     char *inputcomb = (char *)malloc(sizeof(char) * MAXINPUT);
     int i;
     
@@ -32,6 +33,9 @@ int main(int argc, char **argv) {
                     break;
                 case 'b': // base offset
                     offset = strtol(argv[++i], NULL, 16);
+                    break;
+                case 's': // forced size
+                    basesize = strtol(argv[++i], NULL, 10);
                     break;
                 default:
                     usage(argv[0]);
@@ -75,13 +79,17 @@ int main(int argc, char **argv) {
         buffer[size + 1] = '\0';
 
         snprintf(inputcomb, MAXINPUT, "%s\n\n%s", strdup(inputcomb), strdup(buffer));
-        inputcomblen = inputcomblen + strlen(buffer) + 1;
+        inputcomblen = inputcomblen + (size + 1) + 1;
         
         i++;
     }
     inputcomb[inputcomblen + 1] = '\0';
 
-    compiler(inputcomb, outfilename, offset);
+    FILE *f = fopen("out.asm", "w");
+    fwrite(inputcomb, inputcomblen, 1, f);
+    fclose(f);
+
+    compiler(inputcomb, outfilename, offset, basesize);
 
     return 0;
 }

@@ -7,6 +7,7 @@ A32ASM supports general assembly operations as well as Macros and other modern f
 ## Output file structure:
 
 Outputs can be given an offset with the `-b offset` flag on the assembler so that they may be placed at different locations in the address space, the offset is interpreted as base 16.
+    An output may also have a specified forced size with `-s size` (for flat binaries that can be loaded as disks in which case you need to allocate a number of sectors)
 
 Code section supports all generic instructions and directives.
 

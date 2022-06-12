@@ -373,6 +373,7 @@ static int doopcode(opcodepre_t opcodeprefix) {
             return NORMOP;
 
         default: // invalid instruction
+            printf("basinst on (ip: 0x%08x) 0x%02x 0x%02x %s\n", vm.regs[REG_IP], opcodeprefix.instruction, opcodeprefix.mode, resolveinstruction(opcodeprefix.instruction));
             audr32_exception(EXC_BADINST);
             return NORMOP;
         
@@ -521,8 +522,6 @@ void run(uint32_t ramsize) {
             }
 
         }
-
-        printf("bx: 0x%08x\n", vm.regs[REG_BX]);
 
         if((ticks%TPF) == 0) {
             void screen_blit(device_t *dev);

@@ -573,6 +573,7 @@ static void videoservice_handleint(void) {
 }
 
 void write_textmode(uint32_t addr, uint32_t type, uint32_t value) {
+    printf("write 0x%08x 0x%08x\n", addr, value);
     switch(type) {
         case BUS_BYTE:
             write_byte(textbackbuffer, addr, value);
@@ -599,7 +600,7 @@ uint32_t read_textmode(uint32_t addr, uint32_t type) {
     return 0;
 }
 
-void write_fb(uint32_t addr, uint32_t type, uint32_t value) {
+void write_fb(uint32_t addr, uint32_t type, uint32_t value) { 
     switch(type) {
         case BUS_BYTE:
             write_byte(backbuffer, addr, value);

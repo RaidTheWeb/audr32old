@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -9,7 +10,9 @@
 #include "compiler.h"
 
 static void usage(char *prog) {
-    fprintf(stderr, "Usage: %s [-o outfile] file [file ...]\n", prog);
+    fprintf(stderr, "Usage: %s [-b base] [-s size] [-o outfile] file [file ...]\n", prog);
+    fprintf(stderr, "       -b base, force an offset\n");
+    fprintf(stderr, "       -s size, force a base size for output binary\n");
     fprintf(stderr, "       -o outfile, output executable\n");
     exit(1);
 }
@@ -46,7 +49,12 @@ int main(int argc, char **argv) {
     if(i >= argc) usage(argv[0]);
 
     FILE *file;
-    int inputcomblen = 0;
+    FILE *out = fopen("out.asm", "w");
+    if(out == NULL) {
+        printf("Error occurred trying to open temporary output 'out.asm', exiting. (%s)\n", strerror(errno));
+        return 1;
+    }
+    char c;
     while(i < argc) {
         file = fopen(argv[i], "r");
 
@@ -54,42 +62,41 @@ int main(int argc, char **argv) {
             printf("Error occurred trying to open source file '%s', exiting.\n", argv[i]);
             return 1;
         }
-    
-        fseek(file, 0, SEEK_END);
-        size_t size = ftell(file);
-        fseek(file, 0, SEEK_SET);
-    
-        char *buffer = (char *)malloc(size + 1);
-        if(buffer == NULL) {
-            printf("Error occurred trying to allocate buffer to read '%s', exiting.\n", argv[i]);
-            fclose(file);
-            return 1;
+        while((c = fgetc(file)) != EOF) {
+            fputc(c, out);
         }
     
-        size_t read = fread(buffer, sizeof(char), size, file);
-        if(read < size) {
-            printf("Error occurred trying to read '%s', exiting.\n", argv[i]);
-            fclose(file);
-            free(buffer);
-            return 1;
-        }
-        
-
         fclose(file);
-        buffer[size + 1] = '\0';
-
-        snprintf(inputcomb, MAXINPUT, "%s\n\n%s", strdup(inputcomb), strdup(buffer));
-        inputcomblen = inputcomblen + (size + 1) + 1;
         
         i++;
     }
-    inputcomb[inputcomblen + 1] = '\0';
+    fclose(out);
 
-    FILE *f = fopen("out.asm", "w");
-    fwrite(inputcomb, inputcomblen, 1, f);
-    fclose(f);
+    FILE *f = fopen("out.asm", "r");
+    
+    fseek(f, 0, SEEK_END);
+    size_t size = ftell(f);
+    fseek(f, 0, SEEK_SET);
 
-    compiler(inputcomb, outfilename, offset, basesize);
+    char *buffer = (char *)malloc(size + 1);
+    if(buffer == NULL) {
+        printf("error occurred trying to allocate buffer to read '%s', exiting.\n", argv[i]);
+        fclose(file);
+        return 1;
+    }
+
+
+    size_t read = fread(buffer, sizeof(char), size, f);
+    if(read < size) {
+        printf("error occurred trying to read '%s', exiting.\n", argv[i]);
+        fclose(file);
+        free(buffer);
+        return 1;
+    }
+    buffer[size + 1] = '\0';
+
+
+    compiler(buffer, outfilename, offset, basesize);
 
     return 0;
 }

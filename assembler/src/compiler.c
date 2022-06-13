@@ -227,6 +227,7 @@ static void parseptr(struct Parser *parser, struct Lexer *lexer) {
                 break;
         }
         match(parser, lexer, TOK_NUMBER);
+        printf("reading pointer location");
         match(parser, lexer, TOK_COLON);
         if(checktoken(parser, TOK_NUMBER)) {
             emitbyte(&emitter, mode);
@@ -1385,11 +1386,12 @@ static void parsemacro(struct Parser *parser, struct Lexer *lexer) {
         size_t size = ftell(file);
         fseek(file, 0, SEEK_SET);
 
-        char *buffer = (char *)malloc(size);
+        char *buffer = (char *)malloc(size + 1);
 
         size_t read = fread(buffer, sizeof(uint8_t), size, file);
 
         fclose(file);
+        buffer[size + 1] = '\0';
 
         compilefile(buffer);
 
@@ -1499,6 +1501,7 @@ static void parsestatement(struct Parser *parser, struct Lexer *lexer) {
             // printf("Label: '%s', %d\n", label, parser->curtoken.type);
             labelmapset(labels, label, emitter.written + emitter.offset);
             nexttoken(parser, lexer);
+            printf("data mode parse colon\n");
             match(parser, lexer, TOK_COLON);
             if(checktoken(parser, TOK_NEWLINE)) nexttoken(parser, lexer);
             return;

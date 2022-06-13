@@ -33,6 +33,7 @@ void inittokenc(struct Token *token, char text, int type) {
     }
 
 int checkifkeyword(char *text, struct Lexer *lexer, int startofline) {
+    printf("%d %s\n", startofline, text);
     if(startofline && peek(lexer) == ':') return TOK_LABEL; // allow definition of labels named the same as instructions
     DEF_REG(ax) // registers have next level precedence
     DEF_REG(bx)
@@ -201,7 +202,7 @@ char peek(struct Lexer *lexer) {
 }
 
 void skipwhitespace(struct Lexer *lexer) {
-    while(lexer->current == ' ' || lexer->current == '\t' || lexer->current == '\r' || lexer->current == '\f' || ((lexer->current > 0 && lexer->current < 9) || (lexer->current > 14 && lexer->current < 32))) { // || lexer->current < 0x20) { 
+    while(lexer->current == '!' || lexer->current == ' ' || lexer->current == '\t' || lexer->current == '\r' || lexer->current == '\f' || ((lexer->current > 0 && lexer->current < 9) || (lexer->current > 14 && lexer->current < 32))) { // || lexer->current < 0x20) { 
 //        if(lexer->current == '\n' && lexer->current == '\0') break; // catch newlines and EOF
         nextchar(lexer, 1);
     }
@@ -409,6 +410,7 @@ struct Token gettoken(struct Lexer *lexer) {
     } else if((lexer->current > 0 && lexer->current < 9) || (lexer->current > 14 && lexer->current < 32)) {
         printf("excluded character\n");
     } else {
+        printf("%c\n", lexer->source[lexer->pos]);
         lexerabort(lexer, "Unknown Token");
     }
     

@@ -1,9 +1,0 @@
-11:02pm~: Tuesday 26th April 2022
-
-- Implement better handling of newlines at the end of certain statements. 
-	- Labels now work inline
-- Implement `#include "file.asm"` and refactor entire system for assembling files.
-	- Assembling is now seperate from relocating and emitting, meaning multiple files may be "merged" before final linking.
-- Realise making signed instructions is useless, as unsigned instructions will produce an identical outcome.
-    - Implement signed integers into assembler *properly* via a simple change to the lexer
-

@@ -20,6 +20,8 @@ void doadd(opcodepre_t prefix) {
 
             vm.regs[first] += vm.regs[second];
 
+            // printf("add 0x%02x 0x%02x 0x%08x\n", first, second, vm.regs[first]);
+
             break;
         }
         case ADD_REGPTR: {
@@ -35,6 +37,8 @@ void doadd(opcodepre_t prefix) {
             uint32_t second = READ_BYTE32();
 
             vm.regs[first] += second;
+
+            // printf("add 0x%02x 0x%08x 0x%08x\n", first, second, vm.regs[first]);
 
             break;
         }
@@ -81,6 +85,7 @@ void dosub(opcodepre_t prefix) {
 
             vm.regs[first] -= vm.regs[second];
 
+            // printf("sub 0x%02x 0x%02x 0x%08x\n", first, second, vm.regs[first]);
             break;
         }
         case SUB_REGPTR: {
@@ -96,6 +101,7 @@ void dosub(opcodepre_t prefix) {
             uint32_t second = READ_BYTE32();
 
             vm.regs[first] -= second;
+            // printf("sub 0x%02x 0x%08x 0x%08x\n", first, second, vm.regs[first]);
             break;
         }
         case SUB_PTRPTR: {
@@ -119,6 +125,69 @@ void dosub(opcodepre_t prefix) {
             break;
         }
 
+        default:
+            printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
+            exit(1);
+            return;
+    }
+}
+
+//       DEST - SRC
+#define IDIV_REGREG 0x00
+#define IDIV_REGPTR 0x01
+#define IDIV_REGDAT 0x02
+#define IDIV_PTRPTR 0x03
+#define IDIV_PTRREG 0x04
+#define IDIV_PTRDAT 0x05
+
+void doidiv(opcodepre_t prefix) {
+    switch(prefix.mode) {
+        case IDIV_REGREG: {
+            uint8_t first = READ_BYTE();
+            uint8_t second = READ_BYTE();
+
+            vm.regs[first] = (int32_t)vm.regs[first] / (int32_t)vm.regs[second];
+            vm.regs[REG_AX] = (int32_t)vm.regs[first] % (int32_t)vm.regs[second]; // tramples AX
+            break;
+        }
+        case IDIV_REGPTR: {
+            uint8_t first = READ_BYTE();
+            uint32_t second = GET_PTR(READ_PTR());
+
+            vm.regs[first] = (int32_t)vm.regs[first] / (int32_t)second;
+            vm.regs[REG_AX] = (int32_t)vm.regs[first] % (int32_t)second; // tramples AX
+            break;
+        }
+        case IDIV_REGDAT: {
+            uint8_t first = READ_BYTE();
+            uint32_t second = READ_BYTE32();
+
+            vm.regs[first] = (int32_t)vm.regs[first] / (int32_t)second;
+            vm.regs[REG_AX] = (int32_t)vm.regs[first] % (int32_t)second; // tramples AX
+            break;
+        }
+        case IDIV_PTRPTR: {
+            ptr_t first = READ_PTR();
+            uint32_t second = GET_PTR(READ_PTR());
+            vm.regs[REG_AX] = (int32_t)GET_PTR(first) % (int32_t)second; // tramples AX
+            SET_PTR(first, (int32_t)GET_PTR(first) / (int32_t)second);
+            break;
+        }
+        case IDIV_PTRREG: {
+            ptr_t first = READ_PTR();
+            uint8_t second = READ_BYTE();
+            vm.regs[REG_AX] = (int32_t)GET_PTR(first) % (int32_t)second; // tramples AX
+            SET_PTR(first, (int32_t)GET_PTR(first) / (int32_t)GET_REGISTER32(second));
+            break;
+        }
+        case IDIV_PTRDAT: {
+            ptr_t first = READ_PTR();
+            uint32_t second = READ_BYTE32();
+            
+            vm.regs[REG_AX] = (int32_t)GET_PTR(first) % (int32_t)second; // tramples AX
+            SET_PTR(first, (int32_t)GET_PTR(first) / (int32_t)second);
+            break;
+        }
         default:
             printf("Instruction attempted to use a mode that doesn't exist! (code: 0x%02x)\n", prefix.mode);
             exit(1);

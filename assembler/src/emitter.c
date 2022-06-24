@@ -54,6 +54,7 @@ void relocatebyte32(struct Emitter *emitter, uint32_t loc, uint32_t byte32) {
 
 void writefile(struct Emitter *emitter) {
     FILE *fp = fopen(emitter->fullPath, "w+b");
+    printf("%u %u\n", emitter->written, emitter->basesize);
     fwrite(emitter->code, sizeof(uint8_t), emitter->written > emitter->basesize ? emitter->written : emitter->basesize, fp);
     fclose(fp);
 }

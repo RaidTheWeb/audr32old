@@ -33,7 +33,7 @@ void inittokenc(struct Token *token, char text, int type) {
     }
 
 int checkifkeyword(char *text, struct Lexer *lexer, int startofline) {
-    printf("%d %s\n", startofline, text);
+    // printf("%d %s\n", startofline, text);
     if(startofline && peek(lexer) == ':') return TOK_LABEL; // allow definition of labels named the same as instructions
     DEF_REG(ax) // registers have next level precedence
     DEF_REG(bx)
@@ -62,10 +62,10 @@ int checkifkeyword(char *text, struct Lexer *lexer, int startofline) {
     DEF_REG(r15)
     else if(!startofline) return TOK_LABEL; // allow usage
 
-    if(strcmp(text, "noop") == 0) {
-        return TOK_NOOP;
-    } else if(strcmp(text, "halt") == 0) {
-        return TOK_HALT;
+    if(strcmp(text, "nop") == 0) {
+        return TOK_NOP;
+    } else if(strcmp(text, "hlt") == 0) {
+        return TOK_HLT;
     } else if(strcmp(text, "mov") == 0) {
         return TOK_MOV;
     } else if(strcmp(text, "int") == 0) {
@@ -116,24 +116,14 @@ int checkifkeyword(char *text, struct Lexer *lexer, int startofline) {
         return TOK_PUSH;
     } else if(strcmp(text, "add") == 0) {
         return TOK_ADD;
-    } else if(strcmp(text, "iadd") == 0) {
-        return TOK_IADD;
     } else if(strcmp(text, "sub") == 0) {
         return TOK_SUB;
-    } else if(strcmp(text, "isub") == 0) {
-        return TOK_ISUB;
     } else if(strcmp(text, "div") == 0) {
         return TOK_DIV;
     } else if(strcmp(text, "idiv") == 0) {
         return TOK_IDIV;
     } else if(strcmp(text, "mul") == 0) {
         return TOK_MUL;
-    } else if(strcmp(text, "imul") == 0) {
-        return TOK_IMUL;
-    } else if(strcmp(text, "inc") == 0) {
-        return TOK_INC;
-    } else if(strcmp(text, "dec") == 0) {
-        return TOK_DEC;
     } else if(strcmp(text, "cmp") == 0) {
         return TOK_CMP;
     } else if(strcmp(text, "and") == 0) {
@@ -152,20 +142,8 @@ int checkifkeyword(char *text, struct Lexer *lexer, int startofline) {
         return TOK_NEG;
     } else if(strcmp(text, "test") == 0) {
         return TOK_TEST;
-    } else if(strcmp(text, "cld") == 0) {
-        return TOK_CLD;
-    } else if(strcmp(text, "lodsb") == 0) {
-        return TOK_LODSB;
-    } else if(strcmp(text, "lodsw") == 0) {
-        return TOK_LODSW;
-    } else if(strcmp(text, "lodsd") == 0) {
-        return TOK_LODSD;
-    } else if(strcmp(text, "loop") == 0) {
-        return TOK_LOOP;
-    } else if(strcmp(text, "pusha") == 0) {
-        return TOK_PUSHA;
-    } else if(strcmp(text, "popa") == 0) {
-        return TOK_POPA;
+    } else if(strcmp(text, "syscall") == 0) {
+        return TOK_SYSCALL;
     }
     
     return TOK_LABEL;

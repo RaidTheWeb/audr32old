@@ -30,6 +30,7 @@ void io_remove_device(uint16_t busid) {
 }
 
 static uint32_t inx(uint16_t port) {
+    printf("inx 0x%04x\n", port);
     if(port >= MAX_PORTS) {
         printf("Instruction attempted to access illegal I/O port, somehow. (code: 0x%04x)\n", port);
         exit(1);
@@ -68,6 +69,7 @@ static void outx(uint16_t port, uint32_t data) {
 #define INX_DAT 0x02
 
 void doinx(opcodepre_t prefix) {
+    printf("begin inx\n");
     switch(prefix.mode) {
         case INX_REG: {
             uint8_t reg = READ_BYTE();
@@ -89,6 +91,7 @@ void doinx(opcodepre_t prefix) {
             exit(1);
             return;
     }
+    printf("end inx\n");
 }
 
 

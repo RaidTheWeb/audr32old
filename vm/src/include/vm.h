@@ -7,7 +7,7 @@
 #include "common.h"
 #include "io.h"
 
-/** Address locations */
+/** Address locations (mapped on the bus at their respective locations) */
 #define ADDR_BUSREGISTERS       0x000002F5 // various bits of information about devices on the bus (about 10 slots)
 #define ADDR_BUSREGISTERSEND    0x000002FF
 #define ADDR_FRAMEBUFFER        0x00000300
@@ -23,9 +23,7 @@
 #define ADDR_SECTORCACHE        0x40340000 // Block buffer (512 bytes)
 #define ADDR_SECTORCACHEEND     0x40340200
 
-
 #define MAX_REGS                25
-#define MAX_FLAGS               8
 
 struct VM {
     uint8_t *memory; // memory (ram)
@@ -64,9 +62,11 @@ typedef struct {
 } opcodepre_t;
 
 enum {
-    EXC_BUSERROR        =           0x01,           // bus operation failed
-    EXC_BADADDR         =           0x02,           // attempted to access a illegal address
-    EXC_BADINST         =           0x03            // attempted to interpret an instruction that does not exist
+    EXC_BUSERROR        =           0x01,           // Bus operation failed
+    EXC_BADADDR         =           0x02,           // Attempted to access a illegal address
+    EXC_BADINST         =           0x03,           // Attempted to interpret an instruction that does not exist
+    EXC_BADINT          =           0x04,           // Triggered an interrupt with no registered handler
+    EXC_BADSYS          =           0x05            // Triggered an unassigned syscall
 };
 
 enum {
@@ -84,8 +84,8 @@ void SET_FLAG(uint8_t flag, uint8_t value);
 
 enum {
     /** Misc */
-    OP_NOOP             =           0x00,           // Perform no operation
-    OP_HALT             =           0x01,           // Halt operation
+    OP_NOP              =           0x00,           // Perform no operation
+    OP_HLT              =           0x01,           // Halt operation
     OP_MOV              =           0x02,           // Move data
     OP_INT              =           0x03,           // Call interrupt
     
@@ -100,6 +100,11 @@ enum {
     /** I/O */
     OP_INX              =           0x09,           // Grab single double word from port
     OP_OUTX             =           0x0A,           // Send single double word to port
+    // Should be memory mapped!
+    // OUTX:
+    // mov [32:addrforport], data
+    // INX:
+    // mov dx, [32:addrforport]
 
     /** Stack */
     OP_POP              =           0x0B,           // Pop data from stack
@@ -107,49 +112,35 @@ enum {
 
     /** Arithmetic */
     OP_ADD              =           0x0D,           // Addition
-    OP_IADD             =           0x0E,           // Signed Addition
-    OP_SUB              =           0x0F,           // Subtraction
-    OP_ISUB             =           0x10,           // Signed Subtraction
-    OP_DIV              =           0x11,           // Division
-    OP_IDIV             =           0x12,           // Signed Division
-    OP_MUL              =           0x13,           // Multiplication
-    OP_IMUL             =           0x14,           // Signed Multiplication
-    OP_INC              =           0x15,           // Increment
-    OP_DEC              =           0x16,           // Decrement
-    OP_CMP              =           0x17,           // Compare operands
-    OP_AND              =           0x18,           // Logical AND
-    OP_SHL              =           0x19,           // Shift Left
-    OP_SHR              =           0x1A,           // Shift Right
-    OP_XOR              =           0x1B,           // Exclusive OR
-    OP_OR               =           0x1C,           // Logical OR
-    OP_NOT              =           0x1D,           // Logical NOT
+    OP_SUB              =           0x0E,           // Subtraction
+    OP_DIV              =           0x0F,           // Division
+    OP_IDIV             =           0x10,           // Signed Division
+    OP_MUL              =           0x11,           // Multiplication
+    OP_CMP              =           0x12,           // Compare operands
+    OP_AND              =           0x13,           // Logical AND
+                                                    // AND without affecting operands
+    OP_SHL              =           0x14,           // Shift Left
+    OP_SHR              =           0x15,           // Shift Right
+    OP_XOR              =           0x16,           // Exclusive OR
+    OP_OR               =           0x17,           // Logical OR
+    OP_NOEG             =           0x18,          // Logical NOT
+                                                    // Negate
 
     /** Extra Misc */
-    OP_JL               =           0x1E,           // Jump if less-than
-    OP_JLE              =           0x1F,           // Jump if less-than or equal to
-    OP_JG               =           0x20,           // Jump if greater-than
-    OP_JGE              =           0x21,           // Jump if greater-than or equal to
-    OP_SETEQ            =           0x22,           // Set if the Zero Flag is set
-    OP_SETNE            =           0x23,           // Set if the Zero Flag is not set
-    OP_SETLT            =           0x24,           // Set if the Zero Flag and the Carry Flag are not set
-    OP_SETGT            =           0x25,           // Set if the Zero Flag is not set but the Carry Flag is
-    OP_SETLE            =           0x26,           // Set if the Zero Flag is set or the Carry Flag is not set
-    OP_SETGE            =           0x27,           // Set if the Zero Flag is set or the Carry Flag is set
-    OP_LEA              =           0x28,           // Load address of pointer into destination
-    OP_NEG              =           0x29,           // Negate register or pointer
-    OP_TEST             =           0x2A,           // AND but do not affect operands
-    OP_CLD              =           0x2B,           // Clear Direction Flag
-    OP_LODSB            =           0x2C,           // Load byte at address SI into AX
-    OP_LODSW            =           0x2D,           // Load word at address SI into AX
-    OP_LODSD            =           0x2E,           // Load double word at address SI into AX
-    OP_LOOP             =           0x2F,           // Loop according to CX
-    OP_PUSHA            =           0x30,           // Push all registers
-    OP_POPA             =           0x31,           // Pop all registers
+    OP_JL               =           0x19,           // Jump if less-than
+    OP_JLE              =           0x1A,           // Jump if less-than or equal to
+    OP_JG               =           0x1B,           // Jump if greater-than
+    OP_JGE              =           0x1C,           // Jump if greater-than or equal to
+    OP_SET              =           0x1D,           // Set if the Zero Flag is set/Set if the Zero Flag is not set
+                                                    // Set if the Zero Flag and the Carry Flag are not set
+                                                    // Set if the Zero Flag is not set but the Carry Flag is
+                                                    // Set if the Zero Flag is set or the Carry Flag is not set
+                                                    // Set if the Zero Flag is set or the Carry Flag is set
+    OP_LEA              =           0x1E,           // Load address of pointer into destination
+    OP_SYSCALL          =           0x1F,           // Syscall
 
     /** FUNNIES */
 };
-
-
 
 enum {
     REG_AX              =           0x01,           // 32 bit accumulator register
@@ -179,6 +170,7 @@ enum {
     REG_R15             =           0x19            // Generic 32 bit register
 };
 
+// Some abstractions for reading and writing from the bus
 uint32_t cpu_readbyte(uint32_t addr);
 uint32_t cpu_readword(uint32_t addr);
 uint32_t cpu_readdword(uint32_t addr);
@@ -186,8 +178,9 @@ void cpu_writebyte(uint32_t addr, uint32_t value);
 void cpu_writeword(uint32_t addr, uint32_t value);
 void cpu_writedword(uint32_t addr, uint32_t value);
 
+// Macros to both allow for backwards compat and automatically increment instruction pointer
 #define READ_BYTE() (uint8_t)cpu_readbyte(vm.regs[REG_IP]++)
-#define READ_BYTE16() (uint16_t)cpu_readword((vm.regs[REG_IP] += 2) - 2)
+#define READ_BYTE16() (uint16_t)cpu_readword((vm.regs[REG_IP] += 2) - 2) // god this is so hacky it makes me want to cry
 #define READ_BYTE32() (uint32_t)cpu_readdword((vm.regs[REG_IP] += 4) - 4)
 
 #define PTR8        0x01
@@ -198,7 +191,7 @@ void cpu_writedword(uint32_t addr, uint32_t value);
 #define PTRREG32    0x06
 
 typedef struct {
-    uint8_t ptrmode; // Pointer Mode (1: 8 bit, 2: 16 bit, 3: 32 bit)
+    uint8_t ptrmode; // Pointer Mode (1: 8 bit, 2: 16 bit, 3: 32 bit, 4: 8 bit but we mention a register, 5: 16 bit but we mention a register, 6: 32 bit but we mention a register)
     uint32_t addr; // Pointer reference address
 } ptr_t;
 
@@ -214,13 +207,6 @@ uint32_t GET_PTR(ptr_t pointer);
 #define SET_PTR32(pointer, value) cpu_writedword(pointer.addr, value)
 #define INCR_PTR(pointer, value) (SET_PTR(pointer, GET_PTR(pointer) + value))
 
-typedef union {
-    uint8_t u8;
-    uint16_t u16;
-    uint32_t u32;
-} registeruni_t;
-
-void SET_REGISTER(uint8_t reg, registeruni_t value);
 #define SET_REGISTER8(reg, value) vm.regs[reg] = (uint32_t)((uint8_t)value)
 #define SET_REGISTER16(reg, value) vm.regs[reg] = (uint32_t)((uint16_t)value)
 #define SET_REGISTER32(reg, value) vm.regs[reg] = (uint32_t)value

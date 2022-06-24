@@ -93,7 +93,9 @@ int main(int argc, char **argv) {
         free(buffer);
         return 1;
     }
-    buffer[size + 1] = '\0';
+    buffer[size] = '\0';
+
+    // printf("'\n%s\n'\n", buffer);
 
 
     compiler(buffer, outfilename, offset, basesize);

@@ -127,13 +127,16 @@ int read_bus(uint32_t addr, uint32_t type, uint32_t *value) {
         addr -= ADDR_SECTORCACHE;
         *value = read_sectorcache(addr, type);
     } else if(addr >= ADDR_BUSREGISTERS && addr < ADDR_BUSREGISTERSEND) {
+        printf("bus read: 0x%08x 0x%08x align: %s\n", addr, busregs[addr - ADDR_BUSREGISTERS], type == BUS_BYTE ? "8-bit" : type == BUS_WORD ? "16-bit" : type == BUS_DWORD ? "32-bit" : "UNKNOWN");
         addr -= ADDR_BUSREGISTERS;
-        printf("bus: 0x%08x\n", addr);
         if(type == BUS_DWORD) {
             *value = busregs[addr];
             return 1;
         }
         return BUS_ERR;
+    } else {
+        printf("out of bounds read: 0x%08x align: %s\n", addr, type == BUS_BYTE ? "8-bit" : type == BUS_WORD ? "16-bit" : type == BUS_DWORD ? "32-bit" : "UNKNOWN");
+        *value = 0xFFFFFFFF;
     }
     return 1;
 }

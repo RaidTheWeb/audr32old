@@ -52,6 +52,36 @@
       "-O0",
       "-Isrc/include",
       "-o",
+      "build/disk.o",
+      "src/disk.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/disk.c",
+    "output": "/home/rtw/projects/audr32/vm/build/disk.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-O0",
+      "-Isrc/include",
+      "-o",
+      "build/syscall.o",
+      "src/syscall.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/syscall.c",
+    "output": "/home/rtw/projects/audr32/vm/build/syscall.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-O0",
+      "-Isrc/include",
+      "-o",
       "build/common.o",
       "src/common.c"
     ],
@@ -88,6 +118,21 @@
     "directory": "/home/rtw/projects/audr32/vm",
     "file": "/home/rtw/projects/audr32/vm/src/ram.c",
     "output": "/home/rtw/projects/audr32/vm/build/ram.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-O0",
+      "-Isrc/include",
+      "-o",
+      "build/pmu.o",
+      "src/pmu.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/pmu.c",
+    "output": "/home/rtw/projects/audr32/vm/build/pmu.o"
   },
   {
     "arguments": [
@@ -208,21 +253,6 @@
     "directory": "/home/rtw/projects/audr32/vm",
     "file": "/home/rtw/projects/audr32/vm/src/main.c",
     "output": "/home/rtw/projects/audr32/vm/build/main.o"
-  },
-  {
-    "arguments": [
-      "/usr/bin/gcc",
-      "-c",
-      "-g",
-      "-O0",
-      "-Isrc/include",
-      "-o",
-      "build/drive.o",
-      "src/drive.c"
-    ],
-    "directory": "/home/rtw/projects/audr32/vm",
-    "file": "/home/rtw/projects/audr32/vm/src/drive.c",
-    "output": "/home/rtw/projects/audr32/vm/build/drive.o"
   },
   {
     "arguments": [

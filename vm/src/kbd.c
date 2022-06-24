@@ -173,7 +173,8 @@ static size_t ascii_read_i = 0;
 static char ascii_buf[2048];
 
 static uint32_t kbd_poll(uint16_t port) {
-    return kbd_buf[kbd_read_i];
+    ascii_read_i++;
+    return kbd_buf[kbd_read_i++];
 }
 
 static uint8_t pressonly = 0;

@@ -19,6 +19,7 @@
 struct VM vm;
 
 #define CLOCKSPEED 25000000 // 25MHz
+// #define CLOCKSPEED 20000000 // 2000Hz
 #define FPS 60
 #define TPF 1
 #define TICKSPEED (FPS * TPF) // TPS
@@ -27,8 +28,8 @@ struct VM vm;
 #define NORMOP 0x35
 
 static char *instructions[] = {
-    [OP_NOOP] = "noop",
-    [OP_HALT] = "halt",
+    [OP_NOP] = "nop",
+    [OP_HLT] = "hlt",
     [OP_MOV] = "mov",
     [OP_INT] = "int",
     [OP_JMP] = "jmp",
@@ -43,41 +44,30 @@ static char *instructions[] = {
     [OP_ADD] = "add",
     [OP_SUB] = "sub",
     [OP_DIV] = "div",
+    [OP_IDIV] = "idiv",
     [OP_MUL] = "mul",
-    [OP_INC] = "inc",
-    [OP_DEC] = "dec",
     [OP_CMP] = "cmp",
-    [OP_AND] = "and",
+    [OP_AND] = "and/test",
     [OP_SHL] = "shl",
     [OP_SHR] = "shr",
     [OP_XOR] = "xor",
     [OP_OR] = "or",
-    [OP_NOT] = "not",
     [OP_JL] = "jl",
     [OP_JLE] = "jle",
     [OP_JG] = "jg",
     [OP_JGE] = "jge",
-    [OP_SETEQ] = "seteq",
-    [OP_SETNE] = "setne",
-    [OP_SETLT] = "setlt",
-    [OP_SETGT] = "setgt",
-    [OP_SETLE] = "setle",
-    [OP_SETGE] = "setge",
+    [OP_SET] = "set",
     [OP_LEA] = "lea",
-    [OP_NEG] = "neg",
-    [OP_TEST] = "test",
-    [OP_CLD] = "cld",
-    [OP_LODSB] = "lodsb",
-    [OP_LODSW] = "lodsw",
-    [OP_LODSD] = "lodsd",
-    [OP_LOOP] = "loop",
-    [OP_PUSHA] = "pusha"
+    [OP_NOEG] = "not/neg",
+    [OP_SYSCALL] = "syscall"
 };
 
 static char *exceptionnames[] = {
-    [EXC_BUSERROR] = "BUSERROR",
-    [EXC_BADADDR] = "BADADDR",
-    [EXC_BADINST] = "BADINST"
+    [EXC_BUSERROR]  = "BUSERROR",
+    [EXC_BADADDR]   = "BADADDR",
+    [EXC_BADINST]   = "BADINST",
+    [EXC_BADINT]    = "BADINT",
+    [EXC_BADSYS]    = "BADSYS"
 };
 
 static char *resolveinstruction(uint8_t instruction) {
@@ -89,43 +79,7 @@ uint8_t GET_FLAG(uint8_t flag) {
 }
 
 void SET_FLAG(uint8_t flag, uint8_t value) {
-    vm.flags ^= (-value ^ vm.flags) & (0x1 << flag); 
-}
-
-void SET_REGISTER(uint8_t reg, registeruni_t value) {
-    switch(reg) {
-        case REG_AX:
-        case REG_BX:
-        case REG_CX:
-        case REG_DX:
-        case REG_SI:
-        case REG_DI:
-        case REG_SP:
-        case REG_BP:
-        case REG_IP:
-        case REG_R0:
-        case REG_R1:
-        case REG_R2:
-        case REG_R3:
-        case REG_R4:
-        case REG_R5:
-        case REG_R6:
-        case REG_R7:
-        case REG_R8:
-        case REG_R9:
-        case REG_R10:
-        case REG_R11:
-        case REG_R12:
-        case REG_R13:
-        case REG_R14:
-        case REG_R15:
-            SET_REGISTER32(reg, value.u32);
-            break;
-        default:
-            printf("Instruction attempted to set a register that doesn't exist! (code: 0x%02x)\n", reg);
-            exit(1);
-            return;
-    }
+    vm.flags ^= (-value ^ vm.flags) & (0x1 << flag); // crazy bit magic to manipulate each bit of the byte
 }
 
 void audr32_exception(int exce) {
@@ -134,6 +88,11 @@ void audr32_exception(int exce) {
         exit(1);
     }
 
+    vm.curexception = exce;
+}
+
+void audr32_safeexception(int exce) {
+    // literally just the same thing but we don't check for double exceptions
     vm.curexception = exce;
 }
 
@@ -155,6 +114,7 @@ void dosetgt(opcodepre_t);
 void dosetle(opcodepre_t);
 void dosetge(opcodepre_t);
 void dolea(opcodepre_t);
+void dosyscall(opcodepre_t);
 
 /** Procedures */
 void docall(opcodepre_t);
@@ -167,21 +127,14 @@ void dooutx(opcodepre_t);
 /** Stack */
 void dopop(opcodepre_t);
 void dopush(opcodepre_t);
-void dopusha(opcodepre_t);
-void dopopa(opcodepre_t);
 
 /** Arithmetic */
 void doadd(opcodepre_t);
-void doiadd(opcodepre_t);
 void dosub(opcodepre_t);
-void doisub(opcodepre_t);
 void dodiv(opcodepre_t);
 void doidiv(opcodepre_t);
 void domul(opcodepre_t);
-void doimul(opcodepre_t);
 
-void doinc(opcodepre_t);
-void dodec(opcodepre_t);
 void docmp(opcodepre_t);
 void doand(opcodepre_t);
 void doshl(opcodepre_t);
@@ -196,9 +149,9 @@ void doloop(opcodepre_t);
 static int doopcode(opcodepre_t opcodeprefix) {
     switch(opcodeprefix.instruction) {
         /** Misc */
-        case OP_HALT:
+        case OP_HLT:
             return HALTOP;
-        case OP_NOOP:
+        case OP_NOP:
             return NORMOP;
         case OP_MOV:
             domov(opcodeprefix);
@@ -227,26 +180,33 @@ static int doopcode(opcodepre_t opcodeprefix) {
         case OP_JGE:
             dojge(opcodeprefix);
             return NORMOP;
-        case OP_SETEQ:
-            doseteq(opcodeprefix);
+        case OP_SET: {
+            if(opcodeprefix.mode >= 0x00 && opcodeprefix.mode < 0x02) { // seteq
+                opcodeprefix.mode -= 0x00;
+                doseteq(opcodeprefix);
+            } else if(opcodeprefix.mode >= 0x02 && opcodeprefix.mode < 0x04) { // setne
+                opcodeprefix.mode -= 0x02;
+                doseteq(opcodeprefix);
+            }  else if(opcodeprefix.mode >= 0x04 && opcodeprefix.mode < 0x06) { // setlt
+                opcodeprefix.mode -= 0x04;
+                doseteq(opcodeprefix);
+            }  else if(opcodeprefix.mode >= 0x06 && opcodeprefix.mode < 0x08) { // setgt
+                opcodeprefix.mode -= 0x06;
+                doseteq(opcodeprefix);
+            }  else if(opcodeprefix.mode >= 0x08 && opcodeprefix.mode < 0x0A) { // setle
+                opcodeprefix.mode -= 0x08;
+                doseteq(opcodeprefix);
+            }  else if(opcodeprefix.mode >= 0x0A && opcodeprefix.mode < 0x0C) { // setge
+                opcodeprefix.mode -= 0x0A;
+                doseteq(opcodeprefix);
+            } 
             return NORMOP;
-        case OP_SETNE:
-            dosetne(opcodeprefix);
-            return NORMOP;
-        case OP_SETLT:
-            dosetlt(opcodeprefix);
-            return NORMOP;
-        case OP_SETGT:
-            dosetgt(opcodeprefix);
-            return NORMOP;
-        case OP_SETLE:
-            dosetle(opcodeprefix);
-            return NORMOP;
-        case OP_SETGE:
-            dosetge(opcodeprefix);
-            return NORMOP;
+        }
         case OP_LEA:
             dolea(opcodeprefix);
+            return NORMOP;
+        case OP_SYSCALL:
+            dosyscall(opcodeprefix);
             return NORMOP;
 
         /** Procedures */
@@ -277,8 +237,7 @@ static int doopcode(opcodepre_t opcodeprefix) {
                 .ptrmode = 0x03
             };
             vm.regs[REG_SP] += 4;
-            // printf("ret 0x%08x(sp), 0x%08x\n", vm.regs[REG_SP], GET_PTR(pointer));
-            loc = GET_PTR(pointer);
+            loc = GET_PTR(pointer); 
             vm.regs[REG_IP] = loc;
             return NORMOP;
         }
@@ -298,12 +257,6 @@ static int doopcode(opcodepre_t opcodeprefix) {
         case OP_PUSH:
             dopush(opcodeprefix);
             return NORMOP;
-        case OP_PUSHA:
-            dopusha(opcodeprefix);
-            return NORMOP;
-        case OP_POPA:
-            dopopa(opcodeprefix);
-            return NORMOP;
         
         /** Arithmetic */
         case OP_ADD:
@@ -315,20 +268,23 @@ static int doopcode(opcodepre_t opcodeprefix) {
         case OP_DIV:
             dodiv(opcodeprefix);
             return NORMOP; 
+        case OP_IDIV:
+            doidiv(opcodeprefix);
+            return NORMOP;
         case OP_MUL:
             domul(opcodeprefix);
-            return NORMOP; 
-        case OP_INC:
-            doinc(opcodeprefix);
-            return NORMOP;
-        case OP_DEC:
-            dodec(opcodeprefix);
             return NORMOP;
         case OP_CMP:
             docmp(opcodeprefix);
             return NORMOP;
         case OP_AND:
-            doand(opcodeprefix);
+            if(opcodeprefix.mode >= 0x00 && opcodeprefix.mode < 0x06) {
+                opcodeprefix.mode -= 0x00;
+                doand(opcodeprefix);
+            } else if(opcodeprefix.mode >= 0x06 && opcodeprefix.mode < 0x0C) {
+                opcodeprefix.mode -= 0x06;
+                dotest(opcodeprefix);
+            }
             return NORMOP;
         case OP_SHL:
             doshl(opcodeprefix);
@@ -342,38 +298,19 @@ static int doopcode(opcodepre_t opcodeprefix) {
         case OP_OR:
             door(opcodeprefix);
             return NORMOP;
-        case OP_NOT:
-            donot(opcodeprefix);
+        case OP_NOEG: {
+            if(opcodeprefix.mode >= 0x00 && opcodeprefix.mode < 0x02) { // not
+                opcodeprefix.mode -= 0x00;
+                donot(opcodeprefix);
+            } else if(opcodeprefix.mode >= 0x02 && opcodeprefix.mode < 0x04) { // neg
+                opcodeprefix.mode -= 0x02;
+                doneg(opcodeprefix);
+            }
             return NORMOP;
-        case OP_NEG:
-            doneg(opcodeprefix);
-            return NORMOP;
-        case OP_TEST:
-            dotest(opcodeprefix);
-            return NORMOP;
-        case OP_CLD:
-            SET_FLAG(FLAG_DF, 0);
-            return NORMOP;
-        case OP_LODSB:
-            vm.regs[REG_AX] = vm.regs[REG_SI];
-            if(GET_FLAG(FLAG_DF) == 0) vm.regs[REG_SI] = vm.regs[REG_SI] + 1;
-            else vm.regs[REG_SI] = vm.regs[REG_SI] - 1;
-            return NORMOP;
-        case OP_LODSW:
-            vm.regs[REG_AX] = vm.regs[REG_SI];
-            if(GET_FLAG(FLAG_DF) == 0) vm.regs[REG_SI] = vm.regs[REG_SI] + 2;
-            else vm.regs[REG_SI] = vm.regs[REG_SI] - 2;
-            return NORMOP;
-        case OP_LODSD:
-            if(GET_FLAG(FLAG_DF) == 0) vm.regs[REG_SI] = vm.regs[REG_SI] + 4;
-            else vm.regs[REG_SI] = vm.regs[REG_SI] - 4;
-            return NORMOP;
-        case OP_LOOP:
-            doloop(opcodeprefix);
-            return NORMOP;
+        }
 
         default: // invalid instruction
-            printf("basinst on (ip: 0x%08x) 0x%02x 0x%02x %s\n", vm.regs[REG_IP], opcodeprefix.instruction, opcodeprefix.mode, resolveinstruction(opcodeprefix.instruction));
+            printf("badinst on (ip: 0x%08x) 0x%02x 0x%02x %s\n", vm.regs[REG_IP], opcodeprefix.instruction, opcodeprefix.mode, resolveinstruction(opcodeprefix.instruction));
             audr32_exception(EXC_BADINST);
             return NORMOP;
         
@@ -381,6 +318,7 @@ static int doopcode(opcodepre_t opcodeprefix) {
     return NORMOP;
 }
 uint32_t cpu_readbyte(uint32_t addr) {
+    // printf("cpu_readbyte: 0x%08x, current instruction: 0x%08x\n", addr, vm.regs[REG_IP]);
     uint32_t busval;
     if(read_bus(addr, BUS_BYTE, &busval) == BUS_ERR) {
         // fprintf(stderr, "Bad read (8-bit) from 0x%08x", addr);
@@ -517,6 +455,7 @@ void run(uint32_t ramsize) {
                 opcodepre_t opcodeprefix;
                 opcodeprefix.instruction = READ_BYTE();
                 opcodeprefix.mode = READ_BYTE();
+                // printf("opcode: (ip: 0x%08x) 0x%02x|0x%02x (%s)\n", vm.regs[REG_IP], opcodeprefix.instruction, opcodeprefix.mode, resolveinstruction(opcodeprefix.instruction));
                 int result = doopcode(opcodeprefix);
                 if(result == HALTOP) vm.halted = 1;
             }

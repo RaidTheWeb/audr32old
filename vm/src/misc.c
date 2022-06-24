@@ -18,25 +18,22 @@ void domov(opcodepre_t prefix) {
     switch(prefix.mode) {
         case MOV_REGDAT: {
             uint8_t reg = READ_BYTE();
-            registeruni_t reguni;
-            reguni.u32 = READ_BYTE32();
-            SET_REGISTER(reg, reguni);
+            vm.regs[reg] = READ_BYTE32();
+            // printf("mov 0x%02x 0x%08x\n", reg, vm.regs[reg]);
             break;
         }
         case MOV_REGREG: {
             uint8_t dest = READ_BYTE();
             uint8_t src = READ_BYTE();
-            registeruni_t reguni;
-            reguni.u32 = GET_REGISTER32(src);
-            SET_REGISTER(dest, reguni);
+            vm.regs[dest] = vm.regs[src];
+            // printf("mov 0x%02x 0x%02x 0x%08x\n", dest, src, vm.regs[dest]);
             break;
         }
         case MOV_REGPTR: {
             uint8_t reg = READ_BYTE();
             ptr_t pointer = READ_PTR();
-            registeruni_t reguni;
-            reguni.u32 = GET_PTR(pointer);
-            SET_REGISTER(reg, reguni);
+            vm.regs[reg] = GET_PTR(pointer);
+            // printf("mov 0x%02x 0x%08x\n", reg, vm.regs[reg]);
             break;
         }
         case MOV_PTRREG: {
@@ -82,7 +79,7 @@ void dojmp(opcodepre_t prefix) {
         }
         case JMP_DAT: {
             uint32_t loc = READ_BYTE32();
-            vm.regs[REG_IP] = loc;
+            vm.regs[REG_IP] = loc; 
             break;
         }
         default:

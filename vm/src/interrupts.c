@@ -55,11 +55,14 @@ interrupt_t interrupt_read() {
 }
 
 void handleint(interrupt_t interrupt) {
-    if(iotable.ioentries[interrupt.num].set) { 
+    uint16_t found = 0;
+    if(iotable.ioentries[interrupt.num].set) {
+        found = 1;
         iotable.ioentries[interrupt.num].handle();
         vm.interruptpending = 0;
     }
     if(idtable.intent[interrupt.num].set) {
+        found = 1;
         vm.regs[REG_SP] -= 4; 
         ptr_t pointer = {
             .addr = vm.regs[REG_SP],
@@ -69,6 +72,8 @@ void handleint(interrupt_t interrupt) {
         vm.regs[REG_IP] = idtable.intent[interrupt.num].addr;
         vm.interruptpending = 0;
     }
+    void audr32_safeexception(uint32_t exc);
+    if(!found) audr32_safeexception(EXC_BADINT);
 }
 
 void wait_until_triggered(uint16_t busid, uint16_t num) {
@@ -99,14 +104,10 @@ static uint32_t read_portb(uint16_t port) {
 }
 
 static void write_portb(uint16_t port, uint32_t data) {
-    uint8_t entries = *(uint8_t *)&vm.memory[data++];
+    uint8_t entries = cpu_readbyte(data++);
     for(size_t i = 0; i < entries; i += 5) {
-        uint8_t num = *(uint8_t *)&vm.memory[data + i];
-        ptr_t addrptr = {
-            .addr = data + i + 1,
-            .ptrmode = 0x03
-        };
-        uint32_t addr = GET_PTR(addrptr); 
+        uint8_t num = cpu_readbyte(data + i);
+        uint32_t addr = cpu_readdword(data + i + 1); 
         idtent_t idtentry = {
             .set = 1,
             .addr = addr

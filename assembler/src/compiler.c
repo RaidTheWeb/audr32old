@@ -91,18 +91,13 @@ static char *resolvetoken(int type) {
         case TOK_CMP:               return "CMP";
         case TOK_COLON:             return "COLON";
         case TOK_COMMA:             return "COMMA";
-        case TOK_DEC:               return "DEC";
         case TOK_DIV:               return "DIV";
         case TOK_EOF:               return "EOF";
-        case TOK_HALT:              return "HALT";
+        case TOK_HLT:               return "HLT";
         case TOK_HASHTAG:           return "HASHTAG";
-        case TOK_IADD:              return "IADD";
         case TOK_IDIV:              return "IDIV";
-        case TOK_IMUL:              return "IMUL";
-        case TOK_INC:               return "INC";
         case TOK_INT:               return "INT";
         case TOK_INX:               return "INX";
-        case TOK_ISUB:              return "ISUB";
         case TOK_JMP:               return "JMP";
         case TOK_JNZ:               return "JNZ";
         case TOK_JZ:                return "JZ";
@@ -114,7 +109,7 @@ static char *resolvetoken(int type) {
         case TOK_MOV:               return "MOV";
         case TOK_MUL:               return "MUL";
         case TOK_NEWLINE:           return "NEWLINE";
-        case TOK_NOOP:              return "NOOP";
+        case TOK_NOP:               return "NOP";
         case TOK_NOT:               return "NOT";
         case TOK_NUMBER:            return "NUMBER";
         case TOK_OR:                return "OR";
@@ -143,15 +138,9 @@ static char *resolvetoken(int type) {
         case TOK_LEA:               return "LEA";
         case TOK_NEG:               return "NEG";
         case TOK_TEST:              return "TEST";
-        case TOK_CLD:               return "CLD";
-        case TOK_LODSB:             return "LODSB";
-        case TOK_LODSW:             return "LODSW";
-        case TOK_LODSD:             return "LODSD";
-        case TOK_LOOP:              return "LOOP";
-        case TOK_PUSHA:             return "PUSHA";
-        case TOK_POPA:              return "POPA";
+        case TOK_SYSCALL:           return "SYSCALL";
     }
-    return "NOOP"; // Default to NOOP
+    return "NOP"; // Default to NOP
 }
 
 static int checktoken(struct Parser *parser, int type) {
@@ -194,14 +183,13 @@ static void parsesymbol(struct Parser *parser, struct Lexer *lexer) {
     labelmapent_t *label = labelmapget(labels, labeltok.text);
     if(!(label == NULL)) {
         emitbyte32(&emitter, label->value); // emit label
-        printf("predefined label location: 0x%08x\n", label->value);
+        // printf("predefined label location: 0x%08x\n", label->value);
     } else {
         // printf("reference to a label that doesn't exist.\n");
         uint32_t current = emitter.written;
         emitbyte32(&emitter, 0x00000000); // emit zeros (replace later)
         struct Relocatable *relocatable = (struct Relocatable *)malloc(sizeof(struct Relocatable *)); // 32 bit relocatable located at this address.
-        relocatable->symbol = (char *)malloc(sizeof(labeltok.text) + 1);
-        strcpy(relocatable->symbol, labeltok.text);
+        relocatable->symbol = strdup(labeltok.text);
         relocatable->loc = current;
         relocatable->mode = 0x03;
         relocatables[relocatablepointer++] = relocatable;
@@ -227,7 +215,7 @@ static void parseptr(struct Parser *parser, struct Lexer *lexer) {
                 break;
         }
         match(parser, lexer, TOK_NUMBER);
-        printf("reading pointer location");
+        // printf("reading pointer location");
         match(parser, lexer, TOK_COLON);
         if(checktoken(parser, TOK_NUMBER)) {
             emitbyte(&emitter, mode);
@@ -414,7 +402,7 @@ static void parsejz(struct Parser *parser, struct Lexer *lexer) {
 
 static void parsejl(struct Parser *parser, struct Lexer *lexer) {
     uint32_t start = emitter.written;
-    emitbyte(&emitter, 0x1E); // JL
+    emitbyte(&emitter, 0x19); // JL
     // DEST
     if(checktoken(parser, TOK_NUMBER))  {
         emitbyte(&emitter, 0x02);
@@ -444,7 +432,7 @@ static void parsejl(struct Parser *parser, struct Lexer *lexer) {
 
 static void parsejle(struct Parser *parser, struct Lexer *lexer) {
     uint32_t start = emitter.written;
-    emitbyte(&emitter, 0x1F); // JLE
+    emitbyte(&emitter, 0x1A); // JLE
     // DEST
     if(checktoken(parser, TOK_NUMBER))  {
         emitbyte(&emitter, 0x02);
@@ -473,7 +461,7 @@ static void parsejle(struct Parser *parser, struct Lexer *lexer) {
 
 static void parsejg(struct Parser *parser, struct Lexer *lexer) {
     uint32_t start = emitter.written;
-    emitbyte(&emitter, 0x20); // JG
+    emitbyte(&emitter, 0x1B); // JG
     // DEST
     if(checktoken(parser, TOK_NUMBER))  {
         emitbyte(&emitter, 0x02);
@@ -502,7 +490,7 @@ static void parsejg(struct Parser *parser, struct Lexer *lexer) {
 
 static void parsejge(struct Parser *parser, struct Lexer *lexer) {
     uint32_t start = emitter.written;
-    emitbyte(&emitter, 0x21); // JGE
+    emitbyte(&emitter, 0x1C); // JGE
     // DEST
     if(checktoken(parser, TOK_NUMBER))  {
         emitbyte(&emitter, 0x02);
@@ -532,7 +520,7 @@ static void parsejge(struct Parser *parser, struct Lexer *lexer) {
 
 static void parseseteq(struct Parser *parser, struct Lexer *lexer) {
     uint32_t start = emitter.written;
-    emitbyte(&emitter, 0x22); // SETEQ
+    emitbyte(&emitter, 0x1D); // SET
     // DEST
     if(checktoken(parser, TOK_REGISTER)) {
         emitbyte(&emitter, 0x00); // REG
@@ -547,14 +535,14 @@ static void parseseteq(struct Parser *parser, struct Lexer *lexer) {
 
 static void parsesetne(struct Parser *parser, struct Lexer *lexer) {
     uint32_t start = emitter.written;
-    emitbyte(&emitter, 0x23); // SETNE
+    emitbyte(&emitter, 0x1D); // SET
     // DEST
     if(checktoken(parser, TOK_REGISTER)) {
-        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, 0x02); // REG
         emitbyte(&emitter, resolveregister(parser->curtoken.text));
         match(parser, lexer, TOK_REGISTER);
     } else if(checktoken(parser, TOK_LSQUARE)) {
-        emitbyte(&emitter, 0x01); // PTR
+        emitbyte(&emitter, 0x03); // PTR
         parseptr(parser, lexer);
     }
 
@@ -562,14 +550,14 @@ static void parsesetne(struct Parser *parser, struct Lexer *lexer) {
 
 static void parsesetlt(struct Parser *parser, struct Lexer *lexer) {
     uint32_t start = emitter.written;
-    emitbyte(&emitter, 0x24); // SETLT
+    emitbyte(&emitter, 0x1D); // SET
     // DEST
     if(checktoken(parser, TOK_REGISTER)) {
-        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, 0x04); // REG
         emitbyte(&emitter, resolveregister(parser->curtoken.text));
         match(parser, lexer, TOK_REGISTER);
     } else if(checktoken(parser, TOK_LSQUARE)) {
-        emitbyte(&emitter, 0x01); // PTR
+        emitbyte(&emitter, 0x05); // PTR
         parseptr(parser, lexer);
     }
 
@@ -577,14 +565,14 @@ static void parsesetlt(struct Parser *parser, struct Lexer *lexer) {
 
 static void parsesetgt(struct Parser *parser, struct Lexer *lexer) {
     uint32_t start = emitter.written;
-    emitbyte(&emitter, 0x25); // SETGT
+    emitbyte(&emitter, 0x1D); // SET
     // DEST
     if(checktoken(parser, TOK_REGISTER)) {
-        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, 0x06); // REG
         emitbyte(&emitter, resolveregister(parser->curtoken.text));
         match(parser, lexer, TOK_REGISTER);
     } else if(checktoken(parser, TOK_LSQUARE)) {
-        emitbyte(&emitter, 0x01); // PTR
+        emitbyte(&emitter, 0x07); // PTR
         parseptr(parser, lexer);
     }
 
@@ -592,14 +580,14 @@ static void parsesetgt(struct Parser *parser, struct Lexer *lexer) {
 
 static void parsesetle(struct Parser *parser, struct Lexer *lexer) {
     uint32_t start = emitter.written;
-    emitbyte(&emitter, 0x26); // SETLE
+    emitbyte(&emitter, 0x1D); // SET
     // DEST
     if(checktoken(parser, TOK_REGISTER)) {
-        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, 0x08); // REG
         emitbyte(&emitter, resolveregister(parser->curtoken.text));
         match(parser, lexer, TOK_REGISTER);
     } else if(checktoken(parser, TOK_LSQUARE)) {
-        emitbyte(&emitter, 0x01); // PTR
+        emitbyte(&emitter, 0x09); // PTR
         parseptr(parser, lexer);
     }
 
@@ -607,21 +595,21 @@ static void parsesetle(struct Parser *parser, struct Lexer *lexer) {
 
 static void parsesetge(struct Parser *parser, struct Lexer *lexer) {
     uint32_t start = emitter.written;
-    emitbyte(&emitter, 0x27); // SETGE
+    emitbyte(&emitter, 0x1D); // SET
     // DEST
     if(checktoken(parser, TOK_REGISTER)) {
-        emitbyte(&emitter, 0x00); // REG
+        emitbyte(&emitter, 0x0A); // REG
         emitbyte(&emitter, resolveregister(parser->curtoken.text));
         match(parser, lexer, TOK_REGISTER);
     } else if(checktoken(parser, TOK_LSQUARE)) {
-        emitbyte(&emitter, 0x01); // PTR
+        emitbyte(&emitter, 0x0B); // PTR
         parseptr(parser, lexer);
     }
 
 }
 
 static void parsecmp(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x17); // CMP
+    emitbyte(&emitter, 0x12); // CMP
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
@@ -864,7 +852,7 @@ static void parseadd(struct Parser *parser, struct Lexer *lexer) {
 }
 
 static void parsesub(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x0F); // SUB
+    emitbyte(&emitter, 0x0E); // SUB
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
@@ -904,7 +892,47 @@ static void parsesub(struct Parser *parser, struct Lexer *lexer) {
 }
 
 static void parsediv(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x11); // DIV
+    emitbyte(&emitter, 0x0F); // DIV
+    uint32_t loc = emitter.written;
+    emitbyte(&emitter, 0x00); // mock mode
+    uint8_t mode = 0x00; // default (REGREG)
+    // DEST, SRC
+    if(checktoken(parser, TOK_REGISTER)) {
+        mode = 0x00; // REGXXX
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        mode = 0x03; // PTRXXX
+        parseptr(parser, lexer);
+    }
+
+    match(parser, lexer, TOK_COMMA);
+
+    if(checktoken(parser, TOK_NUMBER))  {
+        mode += 2; // XXXDAT
+        emitbyte32(&emitter, strtol(parser->curtoken.text, NULL, 10));
+        match(parser, lexer, TOK_NUMBER);
+    } else if(checktoken(parser, TOK_CHAR)) {
+        mode += 2; // XXXDAT
+        emitbyte32(&emitter, (char)parser->curtoken.text[0]);
+        match(parser, lexer, TOK_CHAR);
+    } else if(checktoken(parser, TOK_LABEL)) {
+        mode += 2; // XXXDAT
+        parsesymbol(parser, lexer);
+    } else if(checktoken(parser, TOK_REGISTER)) {
+        mode += 0; // XXXREG
+        emitbyte(&emitter, resolveregister(parser->curtoken.text));
+        match(parser, lexer, TOK_REGISTER);
+    } else if(checktoken(parser, TOK_LSQUARE)) {
+        mode += 1; // XXXPTR
+        parseptr(parser, lexer);
+    }
+
+    relocatebyte(&emitter, loc, mode); // set mode
+}
+
+static void parseidiv(struct Parser *parser, struct Lexer *lexer) {
+    emitbyte(&emitter, 0x10); // IDIV
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
@@ -944,7 +972,7 @@ static void parsediv(struct Parser *parser, struct Lexer *lexer) {
 }
 
 static void parsemul(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x13); // MUL
+    emitbyte(&emitter, 0x11); // MUL
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
@@ -983,44 +1011,8 @@ static void parsemul(struct Parser *parser, struct Lexer *lexer) {
     relocatebyte(&emitter, loc, mode); // set mode
 }
 
-static void parseinc(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x15); // INC
-    uint32_t loc = emitter.written;
-    emitbyte(&emitter, 0x00); // mock mode
-    uint8_t mode = 0x00; // default (REGREG)
-    // DEST, SRC
-    if(checktoken(parser, TOK_REGISTER)) {
-        mode = 0x00; // REGXXX
-        emitbyte(&emitter, resolveregister(parser->curtoken.text));
-        match(parser, lexer, TOK_REGISTER);
-    } else if(checktoken(parser, TOK_LSQUARE)) {
-        mode = 0x01; // PTRXXX
-        parseptr(parser, lexer);
-    }
-
-    relocatebyte(&emitter, loc, mode); // set mode
-}
-
-static void parsedec(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x16); // DEC
-    uint32_t loc = emitter.written;
-    emitbyte(&emitter, 0x00); // mock mode
-    uint8_t mode = 0x00; // default (REGREG)
-    // DEST, SRC
-    if(checktoken(parser, TOK_REGISTER)) {
-        mode = 0x00; // REGXXX
-        emitbyte(&emitter, resolveregister(parser->curtoken.text));
-        match(parser, lexer, TOK_REGISTER);
-    } else if(checktoken(parser, TOK_LSQUARE)) {
-        mode = 0x01; // PTRXXX
-        parseptr(parser, lexer);
-    }
-
-    relocatebyte(&emitter, loc, mode); // set mode
-}
-
 static void parseand(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x18); // AND
+    emitbyte(&emitter, 0x13); // AND
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
@@ -1060,7 +1052,7 @@ static void parseand(struct Parser *parser, struct Lexer *lexer) {
 }
 
 static void parseshl(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x19); // SHL
+    emitbyte(&emitter, 0x14); // SHL
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
@@ -1100,7 +1092,7 @@ static void parseshl(struct Parser *parser, struct Lexer *lexer) {
 }
 
 static void parseshr(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x1A); // SHR
+    emitbyte(&emitter, 0x15); // SHR
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
@@ -1140,7 +1132,7 @@ static void parseshr(struct Parser *parser, struct Lexer *lexer) {
 }
 
 static void parsexor(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x1B); // XOR
+    emitbyte(&emitter, 0x16); // XOR
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
@@ -1180,7 +1172,7 @@ static void parsexor(struct Parser *parser, struct Lexer *lexer) {
 }
 
 static void parseor(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x1C); // OR
+    emitbyte(&emitter, 0x17); // OR
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
@@ -1220,7 +1212,7 @@ static void parseor(struct Parser *parser, struct Lexer *lexer) {
 }
 
 static void parsenot(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x1D); // NOT
+    emitbyte(&emitter, 0x18); // NOEG
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
@@ -1238,17 +1230,17 @@ static void parsenot(struct Parser *parser, struct Lexer *lexer) {
 }
 
 static void parseneg(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x29); // NEG
+    emitbyte(&emitter, 0x18); // NEG
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
-    uint8_t mode = 0x00; // default (REGREG)
+    uint8_t mode = 0x02; // default (REGREG)
     // DEST, SRC
     if(checktoken(parser, TOK_REGISTER)) {
-        mode = 0x00; // REGXXX
+        mode = 0x02; // REGXXX
         emitbyte(&emitter, resolveregister(parser->curtoken.text));
         match(parser, lexer, TOK_REGISTER);
     } else if(checktoken(parser, TOK_LSQUARE)) {
-        mode = 0x01; // PTRXXX
+        mode = 0x03; // PTRXXX
         parseptr(parser, lexer);
     }
 
@@ -1256,7 +1248,7 @@ static void parseneg(struct Parser *parser, struct Lexer *lexer) {
 }
 
 static void parselea(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x28); // LEA
+    emitbyte(&emitter, 0x1E); // LEA
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
@@ -1282,17 +1274,17 @@ static void parselea(struct Parser *parser, struct Lexer *lexer) {
 
 
 static void parsetest(struct Parser *parser, struct Lexer *lexer) {
-    emitbyte(&emitter, 0x2A); // TEST
+    emitbyte(&emitter, 0x13); // TEST
     uint32_t loc = emitter.written;
     emitbyte(&emitter, 0x00); // mock mode
     uint8_t mode = 0x00; // default (REGREG)
     // DEST, SRC
     if(checktoken(parser, TOK_REGISTER)) {
-        mode = 0x00; // REGXXX
+        mode = 0x06; // REGXXX
         emitbyte(&emitter, resolveregister(parser->curtoken.text));
         match(parser, lexer, TOK_REGISTER);
     } else if(checktoken(parser, TOK_LSQUARE)) {
-        mode = 0x03; // PTRXXX
+        mode = 0x09; // PTRXXX
         parseptr(parser, lexer);
     }
 
@@ -1319,34 +1311,6 @@ static void parsetest(struct Parser *parser, struct Lexer *lexer) {
     }
 
     relocatebyte(&emitter, loc, mode); // set mode
-}
-
-static void parseloop(struct Parser *parser, struct Lexer *lexer) {
-    uint32_t start = emitter.written;
-    emitbyte(&emitter, 0x2F); // LOOP 
-    if(checktoken(parser, TOK_REGISTER)) {
-        emitbyte(&emitter, 0x00); // REG
-        emitbyte(&emitter, resolveregister(parser->curtoken.text));
-        match(parser, lexer, TOK_REGISTER);
-    } else if(checktoken(parser, TOK_LSQUARE)) {
-        emitbyte(&emitter, 0x01); // PTR
-        parseptr(parser, lexer);
-    } else if(checktoken(parser, TOK_NUMBER)) {
-        emitbyte(&emitter, 0x02); // DAT
-        emitbyte32(&emitter, strtol(parser->curtoken.text, NULL, 10));
-        match(parser, lexer, TOK_NUMBER);
-    } else if(checktoken(parser, TOK_CHAR)) {
-        emitbyte(&emitter, 0x02); // DAT
-        emitbyte32(&emitter, (char)parser->curtoken.text[0]);
-        match(parser, lexer, TOK_CHAR);
-    } else if(checktoken(parser, TOK_LABEL)) {
-        emitbyte(&emitter, 0x02); // DAT
-        parsesymbol(parser, lexer);
-    } else if(checktoken(parser, TOK_DOLLAR)) {
-        emitbyte(&emitter, 0x02); // DAT
-        emitbyte32(&emitter, start);
-        match(parser, lexer, TOK_DOLLAR);
-    }
 }
 
 // section
@@ -1381,17 +1345,19 @@ static void parsemacro(struct Parser *parser, struct Lexer *lexer) {
     } else if(strcmp(macroname.text, "include") == 0) { // include assembly file 
         struct Token constant = parser->curtoken;
         match(parser, lexer, TOK_STRING);
-        FILE *file = fopen(constant.text, "rb");
+        FILE *file = fopen(constant.text, "r");
+
         fseek(file, 0, SEEK_END);
         size_t size = ftell(file);
         fseek(file, 0, SEEK_SET);
 
-        char *buffer = (char *)malloc(size + 1);
+        char *buffer = (char *)malloc(size);
 
         size_t read = fread(buffer, sizeof(uint8_t), size, file);
 
         fclose(file);
-        buffer[size + 1] = '\0';
+        buffer[size] = '\0';
+        printf("%zu\n", strlen(buffer));
 
         compilefile(buffer);
 
@@ -1501,7 +1467,7 @@ static void parsestatement(struct Parser *parser, struct Lexer *lexer) {
             // printf("Label: '%s', %d\n", label, parser->curtoken.type);
             labelmapset(labels, label, emitter.written + emitter.offset);
             nexttoken(parser, lexer);
-            printf("data mode parse colon\n");
+            // printf("data mode parse colon\n");
             match(parser, lexer, TOK_COLON);
             if(checktoken(parser, TOK_NEWLINE)) nexttoken(parser, lexer);
             return;
@@ -1512,11 +1478,11 @@ static void parsestatement(struct Parser *parser, struct Lexer *lexer) {
     }
 
     // effective ELSE
-    if(checktoken(parser, TOK_NOOP)) {
+    if(checktoken(parser, TOK_NOP)) {
         nexttoken(parser, lexer);
         emitbyte(&emitter, 0x00);
         emitbyte(&emitter, 0x00);
-    } else if(checktoken(parser, TOK_HALT)) {
+    } else if(checktoken(parser, TOK_HLT)) {
         nexttoken(parser, lexer);
         emitbyte(&emitter, 0x01);
         emitbyte(&emitter, 0x00);
@@ -1605,15 +1571,12 @@ static void parsestatement(struct Parser *parser, struct Lexer *lexer) {
     } else if(checktoken(parser, TOK_DIV)) {
         nexttoken(parser, lexer);
         parsediv(parser, lexer);
+    } else if(checktoken(parser, TOK_IDIV)) {
+        nexttoken(parser, lexer);
+        parseidiv(parser, lexer);
     } else if(checktoken(parser, TOK_MUL)) {
         nexttoken(parser, lexer);
         parsemul(parser, lexer);
-    } else if(checktoken(parser, TOK_INC)) {
-        nexttoken(parser, lexer);
-        parseinc(parser, lexer);
-    } else if(checktoken(parser, TOK_DEC)) {
-        nexttoken(parser, lexer);
-        parsedec(parser, lexer);
     } else if(checktoken(parser, TOK_AND)) {
         nexttoken(parser, lexer);
         parseand(parser, lexer);
@@ -1637,33 +1600,10 @@ static void parsestatement(struct Parser *parser, struct Lexer *lexer) {
         parseneg(parser, lexer);
     } else if(checktoken(parser, TOK_TEST)) {
         nexttoken(parser, lexer);
-        parsetest(parser, lexer);
-    } else if(checktoken(parser, TOK_CLD)) {
+        parsetest(parser, lexer); 
+    } else if(checktoken(parser, TOK_SYSCALL)) {
         nexttoken(parser, lexer);
-        emitbyte(&emitter, 0x2B);
-        emitbyte(&emitter, 0x00);
-    } else if(checktoken(parser, TOK_LODSB)) {
-        nexttoken(parser, lexer);
-        emitbyte(&emitter, 0x2C);
-        emitbyte(&emitter, 0x00);
-    } else if(checktoken(parser, TOK_LODSW)) {
-        nexttoken(parser, lexer);
-        emitbyte(&emitter, 0x2D);
-        emitbyte(&emitter, 0x00);
-    } else if(checktoken(parser, TOK_LODSD)) {
-        nexttoken(parser, lexer);
-        emitbyte(&emitter, 0x2E);
-        emitbyte(&emitter, 0x00);
-    } else if(checktoken(parser, TOK_LOOP)) {
-        nexttoken(parser, lexer);
-        parseloop(parser, lexer);
-    } else if(checktoken(parser, TOK_PUSHA)) {
-        nexttoken(parser, lexer);
-        emitbyte(&emitter, 0x30);
-        emitbyte(&emitter, 0x00);
-    } else if(checktoken(parser, TOK_POPA)) {
-        nexttoken(parser, lexer);
-        emitbyte(&emitter, 0x31);
+        emitbyte(&emitter, 0x1F);
         emitbyte(&emitter, 0x00);
     } else if(checktoken(parser, TOK_HASHTAG)) { // MACRO
         nexttoken(parser, lexer);
@@ -1728,7 +1668,7 @@ int compiler(char *buffer, char *output, uint32_t offset, uint32_t basesize) {
                     relocatebyte16(&emitter, loc, labelloc);
                     break;
                 case 0x03: // 32 bit
-                    printf("relocating %s to 0x%08x at 0x%08x...\n", relocatables[i]->symbol, label->value, loc);
+                    // printf("relocating %s to 0x%08x at 0x%08x...\n", relocatables[i]->symbol, label->value, loc);
                     relocatebyte32(&emitter, loc, labelloc);
                     break;
             }

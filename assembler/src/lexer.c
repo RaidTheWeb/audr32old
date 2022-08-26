@@ -198,6 +198,29 @@ void lexerabort(struct Lexer *lexer, char *message) {
     exit(1);
 }
 
+static char parsech(struct Lexer *lexer) {
+    nextchar(lexer, 0);
+
+    if(lexer->current == '\\') {
+        nextchar(lexer, 0);
+        switch(lexer->current) {
+            case 'a': return '\a';
+            case 'b': return '\b';
+            case 'f': return '\f';
+            case 'n': return '\n';
+            case 'r': return '\r';
+            case 't': return '\t';
+            case 'v': return '\v';
+            case '\\': return '\\';
+            case '"': return '"';
+            case '\'': return '\'';
+            default: lexerabort(lexer, "Unknown escape sequence.");
+        }
+    }
+
+    return lexer->current;
+}
+
 struct Token gettoken(struct Lexer *lexer) { 
     skipwhitespace(lexer);
     skipcomment(lexer);
@@ -286,41 +309,25 @@ struct Token gettoken(struct Lexer *lexer) {
     else if(lexer->current == '$')
         inittokenc(&token, lexer->current, TOK_DOLLAR); // basically the only thing we'll use it for
     else if(lexer->current == '\"') {
-        nextchar(lexer, 0);
-        int startpos = lexer->pos;
-        int marked = 0;
+        char c;
+        char buffer[2048];
 
-        while(!(!marked && lexer->current == '\"')) {
-            marked = 0;
-            if(lexer->current == '\r' || lexer->current == '\n' || lexer->current == '\t')
-                lexerabort(lexer, "Illegal character in string");
-            if(lexer->current == '\\')
-                marked = 1;
-            nextchar(lexer, 0);
-        }
-        inittoken(&token, substring(lexer->source, startpos + 1, lexer->pos - startpos), TOK_STRING);
-    } else if(lexer->current == '\'') {
-        nextchar(lexer, 0);
-        int startpos = lexer->pos;
-        int allowed = 1;
-        int marked = 0;
-
-        while(!(!marked && lexer->current == '\'')) {
-            marked = 0;
-            if(!isascii(lexer->current))
-                lexerabort(lexer, "Character exceeds ASCII range (0-255)");
-            if(lexer->current == '\r' || lexer->current == '\n' || lexer->current == '\t')
-                lexerabort(lexer, "Illegal escape in character");
-            if(lexer->current == '\\') {
-                marked = 1;
-                allowed = 2;
+        for(int i = 0; i < 2048 - 1; i++) {
+            if((c = parsech(lexer)) == '"') {
+                buffer[i] = '\0';
+                goto initstrtoken;
             }
-            nextchar(lexer, 0);
+            buffer[i] = c;
         }
+        lexerabort(lexer, "String exceeds maximum length of 2048");
 
-        if(lexer->pos - startpos > allowed)
-            lexerabort(lexer, "Character of illegal length");
-        inittoken(&token, substring(lexer->source, startpos + 1, lexer->pos - (startpos)), TOK_CHAR);
+initstrtoken:
+        inittoken(&token, buffer, TOK_STRING);
+    } else if(lexer->current == '\'') {
+        char c = parsech(lexer);
+        nextchar(lexer, 0);
+        if(lexer->current != '\'') lexerabort(lexer, "Expected delimiting '\\'' delimiting character literal");
+        inittokenc(&token, c, TOK_CHAR);
     } else if(isdigit(lexer->current)) {
         if(peek(lexer) == 'x') {
 

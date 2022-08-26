@@ -37,6 +37,21 @@
       "-O0",
       "-Isrc/include",
       "-o",
+      "build/audio.o",
+      "src/audio.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/audio.c",
+    "output": "/home/rtw/projects/audr32/vm/build/audio.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-O0",
+      "-Isrc/include",
+      "-o",
       "build/stack.o",
       "src/stack.c"
     ],
@@ -223,6 +238,21 @@
     "directory": "/home/rtw/projects/audr32/vm",
     "file": "/home/rtw/projects/audr32/vm/src/serial.c",
     "output": "/home/rtw/projects/audr32/vm/build/serial.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-O0",
+      "-Isrc/include",
+      "-o",
+      "build/fpu.o",
+      "src/fpu.c"
+    ],
+    "directory": "/home/rtw/projects/audr32/vm",
+    "file": "/home/rtw/projects/audr32/vm/src/fpu.c",
+    "output": "/home/rtw/projects/audr32/vm/build/fpu.o"
   },
   {
     "arguments": [

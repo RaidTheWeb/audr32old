@@ -10,9 +10,10 @@
 #include "compiler.h"
 
 static void usage(char *prog) {
-    fprintf(stderr, "Usage: %s [-b base] [-s size] [-o outfile] file [file ...]\n", prog);
+    fprintf(stderr, "Usage: %s [-b base] [-s size] [-f <bin/mf>] [-o outfile] file [file ...]\n", prog);
     fprintf(stderr, "       -b base, force an offset\n");
     fprintf(stderr, "       -s size, force a base size for output binary\n");
+    fprintf(stderr, "       -f format, output executable format\n");
     fprintf(stderr, "       -o outfile, output executable\n");
     exit(1);
 }
@@ -23,6 +24,7 @@ int main(int argc, char **argv) {
     char *outfilename = "a.out";
     uint32_t offset = 0x40330000; // default offset is boot ROM
     uint32_t basesize = 0;
+    uint8_t format = 0; // flat binary
     char *inputcomb = (char *)malloc(sizeof(char) * MAXINPUT);
     int i;
     
@@ -39,6 +41,16 @@ int main(int argc, char **argv) {
                     break;
                 case 's': // forced size
                     basesize = strtol(argv[++i], NULL, 10);
+                    break;
+                case 'f': // format
+                    if(!strcmp(argv[++i], "bin")) {
+                        format = 0; 
+                    } else if(!strcmp(argv[i], "mf")) {
+                        format = 1;
+                    } else {
+                        fprintf(stderr, "Invalid executable format `%s`\n", argv[i]);
+                        exit(1);
+                    }
                     break;
                 default:
                     usage(argv[0]);
@@ -80,7 +92,7 @@ int main(int argc, char **argv) {
 
     char *buffer = (char *)malloc(size + 1);
     if(buffer == NULL) {
-        printf("error occurred trying to allocate buffer to read '%s', exiting.\n", argv[i]);
+        printf("Error occurred trying to allocate buffer to read '%s', exiting.\n", argv[i]);
         fclose(file);
         return 1;
     }
@@ -88,17 +100,13 @@ int main(int argc, char **argv) {
 
     size_t read = fread(buffer, sizeof(char), size, f);
     if(read < size) {
-        printf("error occurred trying to read '%s', exiting.\n", argv[i]);
+        printf("Error occurred trying to read '%s', exiting.\n", argv[i]);
         fclose(file);
         free(buffer);
         return 1;
     }
     buffer[size] = '\0';
-
-    // printf("'\n%s\n'\n", buffer);
-
-
-    compiler(buffer, outfilename, offset, basesize);
-
+    compiler(buffer, outfilename, offset, basesize, format);
+    printf("finishing\n");
     return 0;
 }
